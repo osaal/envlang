@@ -1,0 +1,278 @@
+(*** TERMINALS ***)
+(* Graphemes from the Unicode set
+
+   Parsing: `UnicodeSegmentation::Graphemes()`
+   See http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries
+*)
+letter = ? Unicode grapheme ?;
+
+(* ASCII digits excluding zero
+
+   Parsing: See digit-zero
+*)
+digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+
+(* ASCII digits including zero
+
+   Parsing: NYI
+   Use UnicodeSegmentation::unicode_words()
+*)
+digit-zero = "0" | digit;
+
+(* Valid non-arithmetic symbols
+
+   Parsing: NYI
+*)
+symbol = "[" | "]" | "{" | "}" | "(" | ")" | "." | ";" | "=" | "-" | "_";
+
+(* Valid arithmetic and set operator symbols
+
+   Parsing: NYI
+*)
+operator = "+" | "-" | "*" | "/" | "%" | "^";
+
+(* Valid Unicode whitespace characters
+
+   Parsing: NYI
+*)
+whitespace = "\u{0009}"
+    | "\u{000A}"
+    | "\u{000B}"
+    | "\u{000C}"
+    | "\u{000D}"
+    | "\u{0020}"
+    | "\u{0085}"
+    | "\u{00A0}"
+    | "\u{1680}"
+    | "\u{2000}"
+    | "\u{2001}"
+    | "\u{2002}"
+    | "\u{2003}"
+    | "\u{2004}"
+    | "\u{2005}"
+    | "\u{2006}"
+    | "\u{2007}"
+    | "\u{2008}"
+    | "\u{2009}"
+    | "\u{200A}"
+    | "\u{2028}"
+    | "\u{2029}"
+    | "\u{202F}"
+    | "\u{205F}"
+    | "\u{3000}";
+(* Characters above in order: 
+    \u{0009} = Character tabulation
+    \u{000A} = Line feed
+    \u{000B} = Line tabulation
+    \u{000C} = Form feed
+    \u{000D} = Carriage return
+    \u{0020} = Space
+    \u{0085} = Next line
+    \u{00A0} = No-break space
+    \u{1680} = Ogham space mark
+    \u{2000} = En quad
+    \u{2001} = Em quad
+    \u{2002} = En space
+    \u{2003} = Em space
+    \u{2004} = Three-per-em space
+    \u{2005} = Four-per-em space
+    \u{2006} = Six-per-em space
+    \u{2007} = Figure space
+    \u{2008} = Punctuation space
+    \u{2009} = Thin space
+    \u{200A} = Hair space
+    \u{2028} = Line separator
+    \u{2029} = Paragraph separator
+    \u{202F} = Narrow no-break space
+    \u{205F} = Medium mathematical space
+    \u{3000} = Ideographic space
+*)
+
+(* Environment terminator
+
+   A terminator is used to terminate a non-embraced-enclosed environment
+   A terminator is optional if environment scope is embrased
+*)
+terminator = ";";
+
+(*** IDENTIFIERS AND STRINGS ***)
+(* Valid character set for naming environments
+
+   Characters are either letters or digits
+   Characters may be used in identifiers, granted that they do not clash with reserved keywords
+*)
+character = letter | digit;
+
+(* Character arrays
+
+   Example: asdf
+            thequickbrownfox
+            12345
+            a63kgds962🐈
+            a
+
+   Character arrays could be identifiers, strings, or numbers
+*)
+character-array = character , { character };
+
+(* Digit arrays
+
+   Example: 123
+            456789
+            0
+
+   Digit arrays could be identifiers or numbers
+*)
+digit-array = digit , { digit };
+
+(* Floating-point numbers
+
+   Example: 0.005
+            3.14
+            100.0
+            005.0
+
+   Floating-point numbers are defined by one or more leading digits, a decimal point ".", and one or more trailing digits
+   Any of the digits may be zero
+   Leading zeros before the decimal point as well as single zeros after the decimal point are ignored during parsing
+*)
+float = digit-zero , { digit-zero } , "." , digit-zero , { digit-zero };
+
+(* Syntax for environment identifiers
+
+   Environment identifiers are used to name everything treated as an environment
+   Identifiers must start with a letter, followed by zero or more letters, digits or underscores
+   Identifiers may not contain whitespace characters
+*)
+identifier = letter , { char-array | "_" };
+
+(* Strings
+
+   Strings are enclosed with double quotes
+   Strings may contain any character, symbol, whitespace or operator
+
+   Note: Escaping characters is not currently supported
+*)
+string = 
+    "\"" ,
+    { character | symbol | whitespace | operator } ,
+    "\"";
+
+(*** KEYWORDS ***)
+(* The following keywords are defined:
+   - let: Assignment keyword
+   - inherit: Inheritance keyword (in contexts of "let")
+*)
+assignment-keyword = "let";
+inheritance-keyword = "inherit";
+
+keywords =
+    assignment-keyword
+    | inheritance-keyword;
+
+(*** INHERITANCE ***)
+(* Inheritance arguments
+
+   Example: (a, b, c) or (*\)
+   Note: Example wildcard closing parenthesis escaped for file formatting
+
+   Inheritance arguments tells the environment which objects to inherit from the parent
+   Inheritance arguments are surrounded by parentheses
+   Objects may be inherited as a comma-separated list or a wildcard '*'
+   Whitespace is ignored everywhere
+   Inheritance arguments are not considered valid outside of inheritance contexts
+*)
+inheritance-argument =
+    "(" ,
+    { whitespace } ,
+    identifier
+    | "*",
+    {
+        { whitespace } ,
+        "," ,
+        { whitespace } ,
+        identifier
+    } ,
+    { whitespace } ,
+    ")";
+
+(* Inherited assignment keyword
+
+   Example: let a inherit (b, c) = { ... };
+
+   Precludes an assignment
+   The keyword 'inherit' may be surrounded by one valid whitespace character, but not more than one
+   The keyword must be followed by the inheritance arguments
+   The keyword not considered valid outside of assignment contexts
+*)
+inherited-assignment =
+    assignment-keyword ,
+    { whitespace } ,
+    identifier ,
+    { whitespace } ,
+    inheritance-keyword ,
+    { whitespace } ,
+    inheritance-argument;
+
+(*** ASSIGNMENTS ***)
+(* Assignment
+
+   Example: let a = { ... };
+            let b = 5;
+            let c = a;
+
+   An assignment is precluded by the assignment keyword and a valid identifier
+   Assignment is done with the assignment operator "="
+   The assignment operator may be surrounded by zero or more valid whitespace characters
+   Assignments contain either explicit or implicit environments (these can be nested, see definitions above)
+   An assignment is terminated by a terminator if it ends with an implicit environment
+   An assignment is optionally terminated by a terminator if it ends with an explicit environment
+
+   Recommendation: Always terminate assignments with a terminator
+*)
+assignment =
+    assignment-keyword
+    | inherited-assignment ,
+    { whitespace } ,
+    identifier ,
+    { whitespace } ,
+    "=" ,
+    { whitespace },
+    explicit-environment | implicit-environment;
+
+function-assignment =
+    function-keyword ,
+    { whitespace } ,
+    identifier ,
+    { whitespace } ,
+    "=" ,
+    { whitespace },
+    explicit-environment | implicit-environment;
+
+(*** ENVIRONMENTS AND ASSIGNMENTS ***)
+(* Environments
+
+   Environments come in two forms: explicit and implicit
+   Explicit environments are surrounded by braces
+   Implicit environments occur on assignments without braces
+   Environments can contain digits, letters, symbols, whitespace, operators and other environments
+   Implicit environments are terminated by a terminator, explicit ones do not require a terminator
+
+   Notes:
+   The distinction between implicit and explicit environments is mostly backend, as both are treated the same for scope-related purposes
+   Implicit environments are not a complete subset of explicit environments, as the former requires a terminator while the latter does not
+   Implicit environments are only used in assignment, and are not valid syntax anywhere else
+*)
+explicit-environment =
+    "{" ,
+    { whitespace } ,
+    { assignment | explicit-environment } ,
+    "}" ,
+    [ terminator ];
+
+implicit-environment =
+    { whitespace } ,
+    character | string ,
+    {  } ,
+    terminator;
+

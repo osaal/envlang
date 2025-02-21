@@ -1,5 +1,12 @@
 mod environment;
+mod unicodeparser;
+mod operators;
+mod parser;
 use crate::environment::*;
+use crate::unicodeparser::*;
+use crate::operators::*;
+use crate::parser::*;
+use std::fs::read_to_string;
 
 fn main() {
 
@@ -51,5 +58,15 @@ fn main() {
             EnvValue::BOOL(val) => println!("Child is a bool: {}", val),
             EnvValue::STRING(val) => println!("Child is a string: {}", val),
         }
+    }
+
+    let input = read_to_string("test.el");
+    match input {
+        Ok(val) => {
+            let parsed: Vec<String> = parse_into_graphemes(val);
+            println!("Input:");
+            println!("{:?}", parsed)
+        },
+        Err(_) => println!("Error!"),
     }
 }
