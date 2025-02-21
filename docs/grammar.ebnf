@@ -23,43 +23,181 @@ digit-zero = "0" | digit;
 
    Parsing: NYI
 *)
-symbol = "[" | "]" | "{" | "}" | "(" | ")" | "." | ";" | "=" | "-" | "_";
+generic-symbol = "-" | "_";
 
 (* Valid arithmetic and set operator symbols
 
+   Note: The multiplication symbol "*" is shared with the wildcard symbol "*"
+
    Parsing: NYI
 *)
-operator = "+" | "-" | "*" | "/" | "%" | "^";
+arithmetic-operator = "+" | "-" | "*" | "/" | "%" | "^";
 
+(* Environment terminator
+
+   A terminator is used to terminate a non-embraced-enclosed environment
+   A terminator is optional if environment scope is embrased
+
+   Parsing: NYI
+*)
+terminator = ";";
+
+(* Accessor symbol
+
+   The accessor symbol is used to access environment members
+   The accessor symbol is a period "." followed by a valid identifier
+   The accessor symbol is not considered valid outside of environment contexts
+
+   Parsing: NYI
+*)
+accessor = ".";
+
+(* Decimal point
+
+   The decimal point is used to define decimal numbers
+   The decimal point is not considered valid outside of floating-point numbers
+*)
+decimal = ".";
+
+(* Assignment symbol
+
+   The assignment symbol is used to assign values to identifiers
+
+   Parsing: NYI
+*)
+assignment = "=";
+
+(* Escape symbol
+
+   The escape symbol escapes other symbols inside strings
+
+   Parsing: NYI
+*)
+escape = "\\";
+
+(* String-specific symbols
+
+   The double and single quotes may be used to define strings
+
+   Parsing: NYI
+*)
+double-quote = "\"";
+single-quote = "'";
+
+(* Separator symbol
+
+   The separator symbol separates elements in function arguments, inheritance arguments, and return values
+
+   Parsing: NYI
+*)
+separator = ",";
+
+(* Wildcard symbol
+
+   The wildcard is used to inherit all environments or return all values
+   The wildcard symbol is only valid in inheritance arguments and function return values
+   The symbol is shared with the multiplication operator (see arithmetic-operator)
+
+   Parsing: NYI
+*)
+wildcard = "*";
+
+(* Environment operators
+
+   Environments are defined by a start and end operator
+
+   Parsing: NYI
+*)
+environment-start-operator = "{";
+environment-end-operator = "}";
+environment-operators = environment-start-operator | environment-end-operator;
+
+(* Inheritance operators
+
+   Inheritance arguments are defined by a start and end operator
+
+   Parsing: NYI
+*)
+inheritance-argument-start-operator = "(";
+inheritance-argument-end-operator = ")";
+inheritance-argument-operators = inheritance-argument-start-operator | inheritance-argument-end-operator;
+
+(* Function argument operators
+
+   Function arguments are defined by a start and end operator
+
+   Parsing: NYI
+*)
+function-argument-start-operator = "[";
+function-argument-end-operator = "]";
+function-argument-operators  = function-argument-start-operator | function-argument-end-operator;
+
+(* All symbols
+
+   Defines all reserved symbols used in the language
+   This does not contain the generic symbols, which are free to be used in identifiers
+
+   Parsing: NYI
+*)
+symbol =
+   arithmetic-operator
+   | terminator
+   | accessor
+   | assignment
+   | double-quote
+   | single-quote
+   | separator
+   | wildcard
+   | escape
+   | environment-operators
+   | inheritance-argument-operators
+   | function-argument-operators;
+
+(*** KEYWORDS ***)
+(* The following keywords are defined:
+   - let: Assignment keyword
+   - inherit: Inheritance keyword (in contexts of "let")
+
+   Parsing: NYI
+*)
+assignment-keyword = "let";
+inheritance-keyword = "inherit";
+function-keyword = "fun";
+keywords =
+   assignment-keyword
+   | inheritance-keyword
+   | function-keyword;
+
+(*** WHITESPACE ***)
 (* Valid Unicode whitespace characters
 
    Parsing: NYI
 *)
 whitespace = "\u{0009}"
-    | "\u{000A}"
-    | "\u{000B}"
-    | "\u{000C}"
-    | "\u{000D}"
-    | "\u{0020}"
-    | "\u{0085}"
-    | "\u{00A0}"
-    | "\u{1680}"
-    | "\u{2000}"
-    | "\u{2001}"
-    | "\u{2002}"
-    | "\u{2003}"
-    | "\u{2004}"
-    | "\u{2005}"
-    | "\u{2006}"
-    | "\u{2007}"
-    | "\u{2008}"
-    | "\u{2009}"
-    | "\u{200A}"
-    | "\u{2028}"
-    | "\u{2029}"
-    | "\u{202F}"
-    | "\u{205F}"
-    | "\u{3000}";
+   | "\u{000A}"
+   | "\u{000B}"
+   | "\u{000C}"
+   | "\u{000D}"
+   | "\u{0020}"
+   | "\u{0085}"
+   | "\u{00A0}"
+   | "\u{1680}"
+   | "\u{2000}"
+   | "\u{2001}"
+   | "\u{2002}"
+   | "\u{2003}"
+   | "\u{2004}"
+   | "\u{2005}"
+   | "\u{2006}"
+   | "\u{2007}"
+   | "\u{2008}"
+   | "\u{2009}"
+   | "\u{200A}"
+   | "\u{2028}"
+   | "\u{2029}"
+   | "\u{202F}"
+   | "\u{205F}"
+   | "\u{3000}";
 (* Characters above in order: 
     \u{0009} = Character tabulation
     \u{000A} = Line feed
@@ -88,18 +226,13 @@ whitespace = "\u{0009}"
     \u{3000} = Ideographic space
 *)
 
-(* Environment terminator
-
-   A terminator is used to terminate a non-embraced-enclosed environment
-   A terminator is optional if environment scope is embrased
-*)
-terminator = ";";
-
-(*** IDENTIFIERS AND STRINGS ***)
+(*** CHARACTERS ***)
 (* Valid character set for naming environments
 
    Characters are either letters or digits
    Characters may be used in identifiers, granted that they do not clash with reserved keywords
+
+   Parsing: NYI
 *)
 character = letter | digit;
 
@@ -112,18 +245,23 @@ character = letter | digit;
             a
 
    Character arrays could be identifiers, strings, or numbers
+
+   Parsing: NYI
 *)
 character-array = character , { character };
 
-(* Digit arrays
+(*** DATA TYPES ***)
+(* Integers
 
    Example: 123
             456789
             0
 
-   Digit arrays could be identifiers or numbers
+   Integers can be strings, parts of identifiers, or numbers
+
+   Parsing: NYI
 *)
-digit-array = digit , { digit };
+integer = digit , { digit };
 
 (* Floating-point numbers
 
@@ -135,40 +273,59 @@ digit-array = digit , { digit };
    Floating-point numbers are defined by one or more leading digits, a decimal point ".", and one or more trailing digits
    Any of the digits may be zero
    Leading zeros before the decimal point as well as single zeros after the decimal point are ignored during parsing
+
+   Parsing: NYI
 *)
 float = digit-zero , { digit-zero } , "." , digit-zero , { digit-zero };
-
-(* Syntax for environment identifiers
-
-   Environment identifiers are used to name everything treated as an environment
-   Identifiers must start with a letter, followed by zero or more letters, digits or underscores
-   Identifiers may not contain whitespace characters
-*)
-identifier = letter , { char-array | "_" };
 
 (* Strings
 
    Strings are enclosed with double quotes
    Strings may contain any character, symbol, whitespace or operator
 
-   Note: Escaping characters is not currently supported
-*)
-string = 
-    "\"" ,
-    { character | symbol | whitespace | operator } ,
-    "\"";
+   Any reserved symbols must be escaped with the escape symbol
 
-(*** KEYWORDS ***)
-(* The following keywords are defined:
-   - let: Assignment keyword
-   - inherit: Inheritance keyword (in contexts of "let")
+   Parsing: NYI
 *)
-assignment-keyword = "let";
-inheritance-keyword = "inherit";
+double-quote-string = 
+   double-quote ,
+   { character | integer | whitespace | generic-symbol | single-quote | ( escape, symbol ) } ,
+   double-quote;
+single-quote-string =
+   single-quote ,
+   { character | integer | whitespace | generic-symbol | double-quote | ( escape, symbol ) } ,
+   single-quote;
 
-keywords =
-    assignment-keyword
-    | inheritance-keyword;
+(* Boolean values
+
+   Example: true
+            false
+
+   Boolean values are used to represent truth values
+   Boolean values are case-sensitive
+
+   Parsing: NYI
+*)
+boolean = ("t", "r", "u", "e") | ("f", "a", "l", "s", "e");
+
+(* Primitive data types
+
+   Primitive data types are either integers, floating-point numbers, strings, or boolean values
+
+   Parsing: NYI
+*)
+data-type = integer | float | double-quote-string | single-quote-string | boolean;
+
+(*** IDENTIFIERS ***)
+(* Environment identifiers
+
+   Environment identifiers are used to name everything treated as an environment
+   Identifiers must start with a letter, followed by zero or more letters, digits or generic symbols
+   Identifiers may not contain whitespace characters
+
+   Parsing: NYI
+*)
+identifier = letter , { character | generic-symbol };
 
 (*** INHERITANCE ***)
 (* Inheritance arguments
@@ -181,20 +338,22 @@ keywords =
    Objects may be inherited as a comma-separated list or a wildcard '*'
    Whitespace is ignored everywhere
    Inheritance arguments are not considered valid outside of inheritance contexts
+
+   Parsing: NYI
 *)
 inheritance-argument =
-    "(" ,
-    { whitespace } ,
-    identifier
-    | "*",
-    {
-        { whitespace } ,
-        "," ,
-        { whitespace } ,
-        identifier
-    } ,
-    { whitespace } ,
-    ")";
+   inheritance-argument-start-operator ,
+   { whitespace } ,
+   identifier
+   | wildcard,
+   {
+      { whitespace } ,
+      separator ,
+      { whitespace } ,
+      identifier
+   } ,
+   { whitespace } ,
+   inheritance-argument-end-operator;
 
 (* Inherited assignment keyword
 
@@ -204,17 +363,35 @@ inheritance-argument =
    The keyword 'inherit' may be surrounded by one valid whitespace character, but not more than one
    The keyword must be followed by the inheritance arguments
    The keyword not considered valid outside of assignment contexts
+
+   Parsing: NYI
 *)
 inherited-assignment =
-    assignment-keyword ,
-    { whitespace } ,
-    identifier ,
-    { whitespace } ,
-    inheritance-keyword ,
-    { whitespace } ,
-    inheritance-argument;
+   assignment-keyword ,
+   { whitespace } ,
+   identifier ,
+   { whitespace } ,
+   inheritance-keyword ,
+   { whitespace } ,
+   inheritance-argument;
 
 (*** ASSIGNMENTS ***)
+(*TODO: Rewrite function-assignment completely!*)
+function-assignment = 
+   function-keyword ,
+   function-argument-start-operator ,
+   { whitespace } ,
+   identifier ,
+   { whitespace } ,
+   "," ,
+   {
+      { whitespace } ,
+      identifier ,
+      { whitespace } ,
+      ","
+   } ,
+   { whitespace };
+
 (* Assignment
 
    Example: let a = { ... };
@@ -229,27 +406,20 @@ inherited-assignment =
    An assignment is optionally terminated by a terminator if it ends with an explicit environment
 
    Recommendation: Always terminate assignments with a terminator
+
+   Parsing: NYI
 *)
 assignment =
-    assignment-keyword
-    | inherited-assignment ,
-    { whitespace } ,
-    identifier ,
-    { whitespace } ,
-    "=" ,
-    { whitespace },
-    explicit-environment | implicit-environment;
+   assignment-keyword
+   | inherited-assignment ,
+   { whitespace } ,
+   identifier ,
+   { whitespace } ,
+   assignment ,
+   { whitespace },
+   explicit-environment | implicit-environment;
 
-function-assignment =
-    function-keyword ,
-    { whitespace } ,
-    identifier ,
-    { whitespace } ,
-    "=" ,
-    { whitespace },
-    explicit-environment | implicit-environment;
-
-(*** ENVIRONMENTS AND ASSIGNMENTS ***)
+(*** ENVIRONMENTS ***)
 (* Environments
 
    Environments come in two forms: explicit and implicit
@@ -262,17 +432,18 @@ function-assignment =
    The distinction between implicit and explicit environments is mostly backend, as both are treated the same for scope-related purposes
    Implicit environments are not a complete subset of explicit environments, as the former requires a terminator while the latter does not
    Implicit environments are only used in assignment, and are not valid syntax anywhere else
+
+   Parsing: NYI
 *)
 explicit-environment =
-    "{" ,
-    { whitespace } ,
-    { assignment | explicit-environment } ,
-    "}" ,
-    [ terminator ];
+   environment-start-operator ,
+   { whitespace } ,
+   { assignment | data-type } ,
+   environment-end-operator ,
+   [ terminator ];
 
 implicit-environment =
-    { whitespace } ,
-    character | string ,
-    {  } ,
-    terminator;
+   data-type ,
+   { whitespace } ,
+   terminator;
 

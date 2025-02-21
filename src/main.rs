@@ -1,11 +1,9 @@
 mod environment;
 mod unicodeparser;
-mod operators;
+mod symbols;
 mod parser;
 use crate::environment::*;
 use crate::unicodeparser::*;
-use crate::operators::*;
-use crate::parser::*;
 use std::fs::read_to_string;
 
 fn main() {
