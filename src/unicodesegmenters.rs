@@ -1,6 +1,6 @@
 use unicode_segmentation::UnicodeSegmentation;
 
-/// Parse a `String` input into Unicode graphemes
+/// Segment a `String` input into Unicode graphemes
 /// 
 /// -  input: The input as a `String` type
 /// 
@@ -10,7 +10,7 @@ use unicode_segmentation::UnicodeSegmentation;
 /// The return will not attempt any other character combinations such as Unicode word boundaries
 /// 
 /// Uses the extended Unicode grapheme boundaries
-pub fn parse_into_graphemes(input: String) -> Vec<String> {
+pub fn segment_graphemes(input: String) -> Vec<String> {
     let collected: Vec<String> = UnicodeSegmentation::graphemes(
         input.as_str(),
         true
@@ -20,7 +20,7 @@ pub fn parse_into_graphemes(input: String) -> Vec<String> {
     return collected;
 }
 
-/// Parse a `String` input into Unicode words based on grapheme and word boundaries
+/// Segment a `String` input into Unicode words based on grapheme and word boundaries
 /// 
 /// -  input: The input as a `String` type
 /// 
@@ -28,7 +28,7 @@ pub fn parse_into_graphemes(input: String) -> Vec<String> {
 /// The return vector will not contain whitespace
 /// 
 /// Note some quirks with the word segmenter (decimals come through in their entirety, English apostrophes are retained, other symbols are removed)
-pub fn parse_into_words(input: String) -> Vec<String> {
+pub fn segment_words(input: String) -> Vec<String> {
     let collected: Vec<String> = UnicodeSegmentation::unicode_words(
         input.as_str()
     )

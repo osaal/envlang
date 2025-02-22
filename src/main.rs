@@ -1,9 +1,10 @@
 mod environment;
-mod unicodeparser;
+mod unicodesegmenters;
 mod symbols;
 mod parser;
+mod errortypes;
 use crate::environment::*;
-use crate::unicodeparser::*;
+use crate::unicodesegmenters::*;
 use std::fs::read_to_string;
 
 fn main() {
@@ -61,7 +62,7 @@ fn main() {
     let input = read_to_string("test.el");
     match input {
         Ok(val) => {
-            let parsed: Vec<String> = parse_into_graphemes(val);
+            let parsed: Vec<String> = segment_graphemes(val);
             println!("Input:");
             println!("{:?}", parsed)
         },

@@ -1,3 +1,5 @@
+use crate::errortypes::ParserError;
+
 /// Types of parsed input
 /// 
 /// -  INT: Integer of type `i32`
@@ -15,3 +17,21 @@ pub enum ParsedInputType {
 // Parsers that check if a given input String/string slice conforms to valid syntax
 
 // Parsers that read given input String/string slices and return parsed inputs
+
+/// Parse Rust string into Envlang integer
+/// 
+/// - input: String slice or String
+/// 
+/// Return: Result<ParsedInputType::INT(input), ParserError::Int(error)>
+pub fn parseInt(input: &str) -> Result<ParsedInputType, ParserError> {
+    return Ok(ParsedInputType::INT(input.parse::<i32>()?));
+}
+
+/// Parse Rust string into Envlang float
+/// 
+/// - input: String slice or String
+/// 
+/// Return: Result<ParsedInputType::FLOAT(input), ParserError::Float(error)>
+pub fn parseFloat(input: &str) -> Result<ParsedInputType, ParserError> {
+    return Ok(ParsedInputType::FLOAT(input.parse::<f64>()?));
+}

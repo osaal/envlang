@@ -3,57 +3,86 @@
 `Envlang` is a functional-style programming language where everything is an environment.
 
 Features of `Envlang`:
-- Dynamic typing (FIX)
-- Pure functions
-- Constant assignments
+- Static typing and constant assignments
+- Pure, isolated functions: always an input, always an output, and no side-effects
+- Functional-style chaining and piping of inputs/outputs
+
+## Data Types
+
+`Envlang` has the following data types:
+
+| Type    | Explanation                                                                                                                                                                                                                                                                            | Syntax example                                                                                          |
+|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| String  | Text strings, conforming to Unicode letters, digits, and whitespace<br>Strings can be single- or double-quoted<br>Strings must escape all special symbols                                                                                                                              | "Hello!"<br>"hunter2"<br>'Single-quoted string'<br>"String with<br>line break"<br>"🐈 is a valid string" |
+| Integer | Signed integers, or the real numbers<br>Limited by the system's maximum signed integer value<br>Leading zeros are stripped for the purposes of arithmetic                                                                                                                              | 5<br>3975<br>-364<br>092                                                                                |
+| Float   | Floating-point numbers, or decimal numbers<br>Limited by the maximum and minimum 64-bit signed floating-point number<br>Leading zeros before the decimal point, and trailing zeros after the final non-zero digit after the decimal point, are stripped for the purposes of arithmetic | 5.0<br>07.3<br>3.140000<br>-67.2                                                                        |
+| Bool    | Boolean truth values<br>Can be either 'true' or 'false'<br>Booleans are case-sensitive, so 'FALSE' will be treated as a string                                                                                                                                                         | true<br>false                                                                                           |                                                                                       |
 
 ## Environments
 
-The basic building block of `Envlang` is the **Environment**. An Environment is defined by braces:
+The basic building block of `Envlang` is the **environment**. An environment is defined by braces:
 
 ```
-{ # Start of environment
+{   # Start of environment
     # Things go here
-} # End of environment
+}   # End of environment
 ```
 
-Environments control scope: Anything inside the Environment is available to use, anything outside the Environment is not (with a few exceptions).
+Environments control scope: Anything inside the environment is available to use, anything outside the environment is not (with a few exceptions).
 
-Most Environments (except function environments; see below) are evaluated immediately, meaning that anything inside the Environment is executed. Once the evaluation is complete, the Environment is discarded, along with any data inside it:
+Environments are evaluated immediately (except function environments; see below), meaning that anything inside the environment is executed. Once the evaluation is complete, the Environment is discarded, along with any data inside it:
 
 ```
-{ # `a` is not accessible, as it has not been defined yet
-    let a = 5;      # `a` is assigned the value 5, making `a` accessible from hereon
-} # `a` goes out of scope and is destroyed
-# `a` is no longer accessible, as it was destroyed because of the scope of the anonymous Environment
+{                   # `a` is not accessible, as it has not been defined yet
+    let a = 5;      # `a` is assigned the value 5, making `a` accessible inside the environment
+}                   # `a` goes out of scope and is destroyed
+                    # `a` is no longer accessible
 ```
 
-An Environment can be anonymous or named. **Anonymous environments** (as the example above) are unassigned, meaning that they cannot be accessed after execution.
+Environments can be anonymous or named. **Anonymous environments** are unassigned, meaning that they cannot be accessed after execution. In the above example, the environment declared with the braces is anonymous, because it was never assigned to an identifier.
 
-**Named Environments**, however, can be accessed later on in the code, using the accessor symbol `.`:
+**Named environments** are assigned to identifiers, and thus not destroyed after evaluation. Their members can be accessed later using the accessor symbol `.`:
 
 ```
 let env = { 
-    let a = 5;      # `a` is assigned the value 5, making `a` accessible from hereon
-} # `a` would go out of scope, but because the parent environment was named, it remains accessible until the parent environment goes out of scope
+    let a = 5;      # `a` is assigned the value 5, making `a` accessible inside the environment
+}                   # `a` stays accessible through `env` because of the named environment
 
-let b = env.a + 5;      # `b` evaluates to 10, because `a` exists in the `env` environment
+let b = env.a + 5;  # `b` evaluates to 10
 ```
 
-In `Envlang`, everything is treated as an Environment. In fact, the above code could be written more verbosely to express this fact:
+**Maxim 1**
+: Everything is an environment.
+
+In fact, the above code could be written more verbosely to reveal this fact:
 
 ```
-let env = { let a = {5} }
-let b = {env.a + 5}
+{
+    let env = { let a = { 5 } }
+    let b = { env.a + 5 }
+}
 ```
+
+This code is functionally equivalent to the first example:
+- The top level of an `Envlang` code file is always its own anonymous environment, called the **global environment**
+- You can make the global environment explicit by simply adding braces to the start and end, but this is not necessary (to avoid extra indentation)
+- The objects `env` and `b` are named environments
+- The `env` environment contains a single environment, `a`, who contains the anonymous environment `5`
+- The `b` environment contains an anonymous environment `env.a + 5`
+
+Evaluation occurs from the deepest nesting level of environments first:
+1. The anonymous environment `5` is evaluated immediately and returns its result to `a`
+2. The named environment `a` is evaluated and returns itself to `env`
+3. The named environment `env` is evaluated and returns itself to the global environment
+4. The anonymous environment `env.a + 5` is evaluated immedaitely and returns its result to `b`
+5. The named environment `b` is evaluated and returns itself to the global environment
 
 When written like this, the contents of the objects `env` and `b` are **explicit environments**. In contrast to these, assignments can also be done using **implicit environments**.
 
 However, note the syntax change:
-- Explicit environments use braces around the right-hand side of the assignment, and do not need to end in the terminator `;`
-- Implicit environments do not use braces and therefore have to end in the terminator `;`
-
-In other words, ending terminators are optional for explicit environments. For clarity, however, they are recommended.
+> **Explicit environments** use braces around the right-hand side of the assignment, and do not need to end in the terminator `;`
+> 
+> **Implicit environments** do not use braces and therefore have to end in the terminator `;`
 
 ## Assignment
 
@@ -69,39 +98,49 @@ Assignments come in three types:
 2. Environment assignments
 3. Function assignments
 
-Assignments always return themselves: in the above example, the values `x`, `y`, and `z` are returned immediately to the parent environment. However, since there is nothing to receive the returns, nothing outside of the assignment happens.
+Assignments can be thought of as special functions: the function call `=` takes left-hand side and right-hand side operands, performs the evaluation in the right-hand side operand and returns the result to the left-hand side operand.
+
+Crucially, however, assignments also return the assigned environment to the parent environment: the values `x`, `y`, and `z` are returned to the global environment once assignment is complete. However, since there is nothing to receive the returns, nothing outside of the assignment happens.
 
 ### Expression assignments
 
-You've already met the first one, as expression assignments are simply evaluations of some calculation on the right-hand side, and storing of the results in the left-hand side.
+You've already met the first one, as expression assignments are simply evaluations of some operand on the right-hand side, and storing of the returned environment in the left-hand side.
 
-However, the expression assignment is actually a fair bit more complicated than that. As noted before, the right-hand side of an expression assignment is actually an anonymous Environment. This implies the following:
+However, the expression assignment is actually a fair bit more complicated than that. As noted before, the right-hand side of an expression assignment is actually an anonymous environment. This implies the following:
 
-1. The interpreter evaluates the right-hand side, as the expression assignment is evaluated immediately.
-2. Because of the implicit environment call, the left-hand side is interpreted as an anonymous expression (e.g., `x + 2`)
-3. All expressions are evaluated immediately, so the anonymous expression is evaluated.
-4. The result is stored in the right-hand side because of the assignment operator (given a valid assignment identifier)
+1. The right-hand side is evaluated first.
+2. The result of the right-hand side is returned after evaluation to the assignment function
+3. The assignment function assigns the result of the right-hand side (a thus-far anonymous environment) to the left-hand side identifier
+    - This takes the data from the right-hand side anonymous environment, copies it into a named environment, and destroys the original anonymous environment.
+4. As the assignment is complete, the assignment operator returns the named environment to the parent environment.
 
 Because assignments always return their values to the parent environment, you can **chain assignments**:
 
 ```
-let x = let y = 5;
+let x = y = 5;
 ```
 
 Step by step, the interpreter:
 1. Sees the `let` keyword and takes the following identifier `x` into memory.
+    - If `x` already exists in the operating environment, the interpreter errors.
 2. Sees the `=` assignment operator.
-3. Sees that the right-hand side is another `let` keyword, thus taking the following identifier `y` into memory.
+3. Sees that the right-hand side is another identifier `y`, and takes it into memory.
+    - If `y` already exists in the operating environment, the interpreter errors.
 4. Sees the `=` assignment operator.
 5. Sees that the right-hand side is an anonymous environment with the value `5`, and evaluates it.
-6. Because `5` is anonymous, it returns itself immediately.
-7. Because the environment returns to the `=` assignment, the environment (containing `5`) is assigned to `y`.
-8. Because `y` returns itself to the `=` assignment, the environment (containing `y`, which contains an environment containing `5`) is assigned to `x`.
-9. Finally, `x` returns itself to the parent environment, where no-one is receiving the value, so nothing extra happens.
+6. The anonymous environment is returned to the second assignment operator.
+7. The assignment operator assigns the returned anonymous environment `5` to the identifier `y`, creating a named environment and destroying the original anonymous environment.
+8. The named environment `y = 5;` is returned to the first assignment operator.
+9. The assignment operator assigns the returned named environment `y = 5;` to the identifier `x`, creating another named environment. Because the previous environment was also named, it is not destroyed.
+10. Finally, the environment `x` is returned to the global environment.
 
-Behind the scenes, the chain is very complex with multiple steps, but the final result is as you would expect: two objects `x` and `y` available in the parent environment, who both contain the values `5`.
+This would normally cause a situation, where the value `5` is actually accessed by `x.y` (see above). However, because of the implicit environment call `y = 5;` and subsequent assignment, the interpreter knows to temporarily 'deanonymise' the structure. Thus, the end result is two named environments `x` and `y`, who both contain the value `5`.
 
-Note: Technically, the environment `x` contains the environment `y` which contains the environment `5`, but the interpreter is smart enough to flatten single-element environments (compare below with environment assignments).
+To avoid the flattened structure, you need to use an explicit environment assignment:
+
+```
+let x = { let y = 5 };
+```
 
 ### Environment assignments
 
@@ -126,6 +165,60 @@ def x = {y: 5, z: 5+2, foo:"Hello!"}
 Note, however, that a traditional Python dictionary would not allow for recursive references within the dictionary (`z` cannot refer to `y` as it is a key in the same dictionary) without trickery. In `Envlang`, this is easily available through expression assignments within environments.
 
 This also shows how `Envlang`'s environments can be thought of as a key-value-paired data structure, similar to `struct` in C/C++/Rust or `dict` in Python.
+
+Environment assignments can also be chained:
+
+```
+let x = y = { let z = 5; }
+```
+
+In this case, both `x` and `y` will contain explicit environments with one element, `z = 5`. Accessing `z` would be possible through `x.z` or `y.z`. Note, that `x` and `y` are not coupled because of the chained assignment -- they do not know of each other.
+
+Things get a bit more complex when a step within the chain is its own environment:
+
+```
+let x = { let y = z; } = { let z = 5; }
+```
+
+When an anonymous environment is assigned to another anonymous environment, the interpreter merges the identifiers from the right-hand side into the environment on the left-hand side:
+
+1. Evaluation starts at the innermost environment `5`, which is immediately returned to the fourth assignment operator.
+2. The value `5` is assigned to the identifier `z`.
+3. Because the right environment `{ let z = 5; }` has completed evaluation, it returns itself to the preceding third assignment operator.
+4. The interpreter notices that the left-hand side is also an environment `{ let y = z; }`, so it merges the two.
+5. Merging is done before evaluation of the left-hand side, so the middle environment now contains `{ let z = 5; let y = z; }`.
+6. The interpreter continues evaluation from the line where the merged environment ends, so it assigns `z` to `y` (the second assignment operator).
+7. The middle environment finishes evaluation and is returned to the first assignment operator.
+8. The assignment operator assigns the environment `{ let z = 5; let y = z; }` to the identifier `x`.
+9. Finally, the assignment returns itself to the global environment.
+
+As a result, the following environment members are accessible in the global environment:
+- `x` (an environment with two members)
+- `x.y` (an environment with one member)
+- `x.z` (an environment with one member)
+
+Note, that `y.z` is not a valid operation: `y` was assigned the value `z`, which contained the value `5`, so the value was **curried** directly into `y`.
+
+**Maxim 2**
+: When the left-hand operand of an assignment is an environment, the right-hand evaluation is merged into the environment.
+
+If you wanted to keep the structure of `{ let z = 5; }`, you would have to assign it to an identifier (create a named environment) prior to merging:
+
+```
+let x = { let y = a.z; } = a = { let z = 5; }
+```
+
+Remember that anonymous environments (e.g., `5` and `a.z`) are evaluated immediately!
+
+Also note the change in accessing `z` inside the environment `{ let y = a.z; }`: Because `a` is merged into the left-hand environment, `z` is accessible only through `a.z`.
+
+This results in the following global environment members:
+- `x` (evaluates to an environment)
+- `x.a` (evaluates to an environment)
+- `x.a.z` (evaluates to the value `5`)
+- `x.y` (evaluates to the value `5`)
+
+### THE FOLLOWING CHAPTERS NEED UPDATING
 
 ### Function assignments
 
