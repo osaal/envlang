@@ -45,3 +45,9 @@ impl From<std::num::ParseFloatError> for ParserError {
         ParserError::Float(e)
     }
 }
+
+// Unit tests for errortypes.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+}

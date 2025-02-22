@@ -22,8 +22,8 @@ pub enum ParsedInputType {
 /// 
 /// - input: String slice or String
 /// 
-/// Return: Result<ParsedInputType::INT(input), ParserError::Int(error)>
-pub fn parseInt(input: &str) -> Result<ParsedInputType, ParserError> {
+/// Return: `Result<ParsedInputType::INT(input), ParserError::Int(error)>`
+pub fn parse_int(input: &str) -> Result<ParsedInputType, ParserError> {
     return Ok(ParsedInputType::INT(input.parse::<i32>()?));
 }
 
@@ -31,7 +31,13 @@ pub fn parseInt(input: &str) -> Result<ParsedInputType, ParserError> {
 /// 
 /// - input: String slice or String
 /// 
-/// Return: Result<ParsedInputType::FLOAT(input), ParserError::Float(error)>
-pub fn parseFloat(input: &str) -> Result<ParsedInputType, ParserError> {
+/// Return: `Result<ParsedInputType::FLOAT(input), ParserError::Float(error)>`
+pub fn parse_float(input: &str) -> Result<ParsedInputType, ParserError> {
     return Ok(ParsedInputType::FLOAT(input.parse::<f64>()?));
+}
+
+// Unit tests for parser.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
 }

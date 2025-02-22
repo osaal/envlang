@@ -147,3 +147,9 @@ impl Environment {
         parent.elements.borrow_mut().push(child)
     }
 }
+
+// Unit tests for environment.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+}

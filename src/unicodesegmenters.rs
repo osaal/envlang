@@ -36,3 +36,9 @@ pub fn segment_words(input: String) -> Vec<String> {
         .collect::<Vec<String>>();
     return collected;
 }
+
+// Unit tests for unicodesegmenters.rs
+#[cfg(test)]
+mod tests {
+    use super::*;
+}
