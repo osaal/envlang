@@ -8,18 +8,17 @@ Usage:
 envlang [FILE_NAME]
 ```
 
-- Status: NYI
+- Status: COMPLETE ✅
 
 Passing a file to the CLI tool should call `crate::io::read_file()`.
 
 Errors if:
-- File not found
 - File name does not end in `.envl`
-- Other permission-related errors?
+- Any other error situations defined in `std::io::ErrorKind`
 
 ## Segment Envlang script into Unicode grapheme segments
 
-- Status: IMPLEMENTED
+- Status: IN PROGRESS
 
 The successful results from `crate::io::read_file()` should be passed to `crate::unicodesegmenters::segment_graphemes()`.
 

@@ -1,4 +1,4 @@
-use crate::errortypes::ParserError;
+use crate::parsererror::ParserError;
 
 /// Types of parsed input
 /// 
