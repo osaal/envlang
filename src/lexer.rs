@@ -62,7 +62,7 @@ impl Lexer {
                 ch if ch.chars().all(|c| c.is_ascii_digit()) => tokens.push(Token::Number(ch.to_string())),
                 ch if ch.chars().all(|c| c.is_alphabetic()) => tokens.push(Token::Identifier(ch.to_string())),
                 ch if ch.chars().all(|c| c.is_whitespace()) => tokens.push(Token::Whitespace(ch.to_string())),
-                _ => {},
+                _ => {}, // TODO: Throw an appropriate error
             }
         }
 
@@ -99,112 +99,113 @@ mod tests {
     #[test]
     fn matches_left_brace() {
         let input = vec!["{".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::LeftBrace, Token::EOF]);
     }
 
     #[test]
     fn matches_right_brace() {
         let input = vec!["}".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::RightBrace, Token::EOF]);
     }
 
     #[test]
     fn matches_singlequoted_string() {
         let input = vec!["'".to_string(), "a".to_string(), "s".to_string(), "d".to_string(), "'".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::StringLiteral("'asd'".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_doublequoted_string() {
         let input = vec!["\"".to_string(), "a".to_string(), "s".to_string(), "d".to_string(), "\"".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::StringLiteral("\"asd\"".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_add_operator() {
         let input = vec!["+".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Operator("+".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_subtract_operator() {
         let input = vec!["-".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Operator("-".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_multiply_operator() {
         let input = vec!["*".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Operator("*".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_divide_operator() {
         let input = vec!["/".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Operator("/".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_modulus_operator() {
         let input = vec!["%".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Operator("%".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_exponentiation_operator() {
         let input = vec!["^".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Operator("^".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_digits() {
         let input = vec!["12345".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Number("12345".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_whitespace() {
         let input = vec!["\n".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Whitespace("\n".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_identifier() {
         let input = vec!["abc".to_string()];
-        let mut lexer = Lexer::new(input);
-        let tokens = lexer.tokenize();
+        let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Identifier("abc".to_string()), Token::EOF]);
     }
 
     // Tests for edge cases
-    // - Test that diacritic characters are recognised as identifiers (ensures Unicode compatibility)
-    // - Test that emoji are not accepted as identifiers (only alphanumeric and digit characters)
-    // - Test that emoji ARE accepted as string literals
-
-    // Tests for error states
-    // - Test that uncovered matches appropriately throw an error (this might be an integration test instead...)
+    #[test]
+    fn handles_diacratic_identifier() {
+        let input = vec!["üýö".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::Identifier("üýö".to_string()), Token::EOF]);
+    }
+    
+    #[test]
+    fn emojis_are_strings() {
+        let input = vec!["\"".to_string(), "😺".to_string(), "\"".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::StringLiteral("\"😺\"".to_string()), Token::EOF]);
+    }
+    
+    #[test]
+    fn emojis_are_not_identifiers() {
+        let input = vec!["😺".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::EOF]);
+    }
 }
