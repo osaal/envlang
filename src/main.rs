@@ -4,6 +4,7 @@ mod symbols;
 mod parser;
 mod parsererror;
 mod io;
+mod lexer;
 
 use std::env;
 

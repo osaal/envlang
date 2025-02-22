@@ -16,7 +16,7 @@ pub fn segment_graphemes(input: String) -> Vec<String> {
         true
     )
         .map(|val: &str| val.to_string())
-        .collect::<Vec<String>>();
+        .collect();
     return collected;
 }
 
