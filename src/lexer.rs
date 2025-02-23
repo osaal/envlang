@@ -1,3 +1,13 @@
+//! The Envlang lexer
+//! 
+//! The lexer takes a Unicode-segmented `String` vector from [`segment_graphemes()`] and turns it into a vector of [`Token`]s.
+//! 
+//! These `Token`s are then intended to be [parsed] into meaningful data structures for the interpreter to evaluate.
+//! 
+//! [`segment_graphemes()`]: ../unicodesegmenters/fn.segment_graphemes.html
+//! [`Token`]: ./enum.Token.html
+//! [parsed]: ../parser/index.html
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     LeftBrace,
@@ -10,6 +20,21 @@ pub enum Token {
     EOF,
 }
 
+/// Envlang lexer
+/// 
+/// The `Lexer` struct holds the Unicode-segmented `String` vector from [`segment_graphemes()`].
+/// 
+/// Note, that the Lexer does not actually check whether the `String`s have been properly segmented!
+/// 
+/// # Panics
+/// 
+/// The method `tokenize` may panic if the `tokens` vector has to outgrow system-specific `isize::MAX` bytes.
+/// 
+/// # Errors
+/// 
+/// The Lexer never errors. Instead, if it cannot lex an input `String`, it skips the `String`. This may be changed in the future.
+/// 
+/// [`segment_graphemes()`]: ../unicodesegmenters/fn.segment_graphemes.html
 pub struct Lexer {
     input: Vec<String>,
     pos: usize
@@ -18,9 +43,9 @@ pub struct Lexer {
 impl Lexer {
     /// Lexer initialization
     /// 
-    /// -  input: The input as a `Vec<String>` type
-    /// 
     /// The input is expected to be a Unicode grapheme-segmented vector of strings
+    /// 
+    /// # Undefined Behaviour
     /// The Lexer will still work with a non-segmented input, but the results will not be accurate for many Unicode characters
     pub fn new(input: Vec<String>) -> Self {
         Self {
@@ -32,6 +57,7 @@ impl Lexer {
     /// Iterate over the input
     /// 
     /// The function will return the next character in the input
+    /// 
     /// It is intended to be used in a while let loop
     fn iterate(&mut self) -> Option<String> {
         if self.pos < self.input.len() {
@@ -46,7 +72,9 @@ impl Lexer {
     /// Tokenize the input
     /// 
     /// The function will return a vector of `Token` types
+    /// 
     /// It iterates over all Strings in the input and matches them to the appropriate `Token` type
+    /// 
     /// Strings are handled with a private function `tokenize_string`, and can handle both double- and single-quoted strings (mixing is okay)
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens: Vec<Token> = Vec::new();
@@ -72,7 +100,7 @@ impl Lexer {
 
     /// Tokenize a string
     /// 
-    /// -  matched: The matched string literal delimiter (" or ')
+    /// The function tokenizes a string between matching start and end delimiters as given in `matched`
     /// 
     /// The function will continue to iterate until the given closing delimiter is found
     fn tokenize_string(&mut self, matched: &str) -> Token {

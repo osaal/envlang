@@ -1,5 +1,17 @@
+//! Envlang internal input/ouutput functions
+//! 
+//! These functions are used by the Envlang interpreter to read and write `.envl` files
+
 use std::fs::read_to_string;
 
+/// Read an `.envl` file
+/// 
+/// Returns a `Result<String, E>`
+/// 
+/// # Errors
+/// Possible errors are all the usual `std::io::Error`s.
+/// 
+/// It also errors if the file does not end in the `.envl` file extension (`std::io::ErrorKind::InvalidInput`)
 pub fn read_file(path: &str) -> Result<String, std::io::Error> {
     // Envlang files must have the .envl suffix to work
     if !path.ends_with(".envl") {

@@ -1,10 +1,15 @@
+//! Wrappers for segmenting input strings into Unicode graphemes
+//! 
+//! This module contains functions for converting `String` data into Unicode-segmented `String` vectors.
+//! 
+//! It uses the external crate [`unicode_segmentation`] heavily.
+//! 
+//! [`unicode_segmentation`]: https://crates.io/crates/unicode-segmentation
+
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Segment a `String` input into Unicode graphemes
 /// 
-/// -  input: The input as a `String` type
-/// 
-/// # Notes
 /// The return vector will contain whitespace and newline characters
 /// 
 /// The return will not attempt any other character combinations such as Unicode word boundaries
@@ -22,9 +27,6 @@ pub fn segment_graphemes(input: String) -> Vec<String> {
 
 /// Segment a `String` input into Unicode words based on grapheme and word boundaries
 /// 
-/// -  input: The input as a `String` type
-/// 
-/// # Notes
 /// The return vector will not contain whitespace
 /// 
 /// Note some quirks with the word segmenter (decimals come through in their entirety, English apostrophes are retained, other symbols are removed)
