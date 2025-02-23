@@ -18,7 +18,7 @@ Errors if:
 
 ## Segment Envlang script into Unicode grapheme segments
 
-- Status: IN PROGRESS
+- Status: COMPLETE ✅
 
 The successful results from `crate::io::read_file()` should be passed to `crate::unicodesegmenters::segment_graphemes()`.
 
@@ -29,14 +29,14 @@ Errors if:
 
 ## Lex Unicode grapheme segments into Tokens
 
-- Status: NYI
+- Status: COMPLETE ✅
 
 The successful results from `crate::unicodesegmenters::segment_graphemes()` should be passed to `crate::lexer::Lexer.tokenize()`.
 
 Returns a `Vec<Token>`, where each `Token` is a lexed token.
 
 Errors if:
-- ???
+- No errors at the moment; inappropriate Tokens are simply skipped
 
 ## Parse Tokens into ParsedInputTypes
 
