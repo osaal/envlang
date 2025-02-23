@@ -17,6 +17,7 @@ pub enum Token {
     StringLiteral(String),
     Whitespace(String),
     Operator(String),
+    FullStop,
     EOF,
 }
 
@@ -69,6 +70,17 @@ impl Lexer {
         }
     }
 
+    /// Peek at following input `String`
+    /// 
+    /// Used as an immutable alternative to `iterate`
+    fn peek_next(&self) -> Option<&String> {
+        if self.pos < self.input.len() {
+            Some(&self.input[self.pos])
+        } else {
+            None
+        }
+    }
+
     /// Tokenize the input
     /// 
     /// The function will return a vector of `Token` types
@@ -87,7 +99,18 @@ impl Lexer {
                 "\"" => tokens.push(self.tokenize_string("\"")),
                 "'" => tokens.push(self.tokenize_string("'")),
                 "+" | "-" | "*" | "/" | "%" | "^" => tokens.push(Token::Operator(ch.to_string())),
-                ch if ch.chars().all(|c| c.is_ascii_digit()) => tokens.push(Token::Number(ch.to_string())),
+                "." => tokens.push(Token::FullStop),
+                ch if ch.chars().all(|c| c.is_ascii_digit()) => {
+                    let mut number = ch.to_string();
+                    while let Some(next_ch) = self.peek_next() {
+                        if next_ch.chars().all(|c| c.is_ascii_digit()) {
+                            number.push_str(&self.iterate().unwrap());
+                        } else {
+                            break;
+                        }
+                    }
+                    tokens.push(Token::Number(number));
+                },
                 ch if ch.chars().all(|c| c.is_alphabetic()) => tokens.push(Token::Identifier(ch.to_string())),
                 ch if ch.chars().all(|c| c.is_whitespace()) => tokens.push(Token::Whitespace(ch.to_string())),
                 _ => {}, // TODO: Throw an appropriate error
@@ -192,6 +215,13 @@ mod tests {
         let input = vec!["^".to_string()];
         let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Operator("^".to_string()), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_fullstop() {
+        let input = vec![".".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::FullStop, Token::EOF]);
     }
 
     #[test]

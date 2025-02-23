@@ -49,36 +49,46 @@ impl Parser {
 
     /// Iteration
     /// 
-    /// The function returns the next `Token` reference in the input
-    /// It is inteded to be used in a while-let loop
+    /// The function returns the `Token` at the current `pos` index
+    /// It is intended to be used in a while-let loop
     /// 
     /// Returns None when the iteration is complete
-    fn iterate(&mut self) -> Option<&Token> {
+    fn get_token(&self) -> Option<&Token> {
         if self.pos < self.input.len() {
             let token = &self.input[self.pos];
-            self.pos += 1;
             return Some(token);
         } else {
             return None;
         }
     }
 
+    /// Increment position
+    /// 
+    /// The function increments the position
+    /// 
+    /// It is intended to be used after successful readings of the input vector
+    fn increment_pos(&mut self) {
+        self.pos += 1;
+    }
+
     /// Parsing
     /// 
     /// The function will return an nested `Environment` structure
     /// It iterates over all `Token`s in the input and matches them to the appropriate semantic structure
+    /// 
+    /// NB: Position incrementation has to happen in the inner-most parsing functions!
     pub fn parse_tokens(&mut self) -> Rc<Environment> {
         let global_env: Rc<Environment> = Environment::new(EnvironmentConfig::default());
 
-        while let Some(token) = self.iterate() {
+        while let Some(token) = self.get_token() {
             match token {
-                Token::Number(t) => {
-                    match Parser::parse_integer(t) {
-                        Ok(v) => global_env.add_element(EnvValue::INT(v)),
+                Token::Number(_) => {
+                    match self.parse_integer() {
+                        Ok(v) => global_env.add_element(v),
                         Err(e) => panic!("{e}"),
                     }
                 },
-                _ => {},
+                _ => {self.increment_pos()},
             }
         }
 
@@ -88,8 +98,34 @@ impl Parser {
     /// Parse an integer
     /// 
     /// The function will return a signed system-sized integer or an error
-    fn parse_integer(token: &String) -> Result<isize, ParserError> {
-        return Ok(token.parse::<isize>()?);
+    /// 
+    /// NOTE: Because it converts floats by recognising a full-stop after a number, take care to run this AFTER matching identifiers!
+    fn parse_integer(&mut self) -> Result<EnvValue, ParserError> {
+        let mut array: String = String::new();
+        let wrapped: EnvValue;
+        let mut is_float: bool = false;
+
+        while let Some(token) = self.get_token() {
+            match token {
+                Token::Number(t) => array.push_str(t),
+                Token::FullStop => {
+                    is_float = true;
+                    array.push_str(".");
+                },
+                _ => break,
+            }
+            self.increment_pos();
+        }
+
+        if is_float {
+            let result = array.parse::<f64>()?;
+            wrapped = EnvValue::FLOAT(result);
+        } else {
+            let result = array.parse::<isize>()?;
+            wrapped = EnvValue::INT(result);
+        }
+
+        return Ok(wrapped);
     }
 }
 
@@ -145,10 +181,73 @@ mod tests {
     use crate::lexer::*;
     use crate::environment::*;
 
+    use std::time::Instant;
+
     #[test]
     fn matches_integer() {
         let lexed_input = Lexer::new(vec!["5".to_string()]).tokenize();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::INT(5)]);
+    }
+
+    #[test]
+    fn matches_float() {
+        let lexed_input = Lexer::new(vec!["3".to_string(), ".".to_string(), "5".to_string()]).tokenize();
+        let global_env = Parser::new(lexed_input).parse_tokens();
+        assert_eq!(global_env.get_elements(), vec![EnvValue::FLOAT(3.5)]);
+    }
+
+    #[test]
+    fn matches_multidigit_float() {
+        let lexed_input = Lexer::new(vec![
+            "123".to_string(), 
+            ".".to_string(), 
+            "456".to_string()
+        ]).tokenize();
+        let global_env = Parser::new(lexed_input).parse_tokens();
+        assert_eq!(global_env.get_elements(), vec![EnvValue::FLOAT(123.456)]);
+    }
+
+    #[test]
+    fn matches_nontrailingzero_float() {
+        let lexed_input = Lexer::new(vec![
+            "123".to_string(), 
+            ".".to_string()
+        ]).tokenize();
+        let global_env = Parser::new(lexed_input).parse_tokens();
+        assert_eq!(global_env.get_elements(), vec![EnvValue::FLOAT(123.0)]);
+    }
+
+    // This test was to benchmark two alternative approaches in handling lexing-parsing responsibilities
+    // Approach 1: Lexer also covers combining numbers together
+    // Approach 2: Lexer only tokenizes single Unicode characters
+    // Results suggest that approach 1 is almost double the speed
+    // Leaving the test here for future reference
+    // TODO: Move this to an integration test once I've moved from pure-binary to binary-library-combined crate structure.
+    #[test]
+    fn benchmark_number_parsing() {
+        // Create a large input with many numbers
+        let large_input = vec!["96145225658".to_string()];
+        
+        // Approach 1: Combined tokens
+        let start = Instant::now();
+        let tokens = Lexer::new(large_input.clone()).tokenize();
+        let mut parser = Parser::new(tokens);
+        parser.parse_tokens();
+        let combined_duration = start.elapsed();
+
+        // Approach 2: Single character tokens
+        let start = Instant::now();
+        let char_input: Vec<String> = large_input
+            .iter()
+            .flat_map(|s| s.chars().map(|c| c.to_string()))
+            .collect();
+        let tokens = Lexer::new(char_input).tokenize();
+        let mut parser = Parser::new(tokens);
+        parser.parse_tokens();
+        let single_char_duration = start.elapsed();
+
+        println!("Combined tokens: {:?}", combined_duration);
+        println!("Single char tokens: {:?}", single_char_duration);
     }
 }
