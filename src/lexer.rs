@@ -8,6 +8,9 @@
 //! [`Token`]: ./enum.Token.html
 //! [parsed]: ../parser/index.html
 
+use crate::symbols::Keywords;
+use crate::symbols::Booleans;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     LeftBrace,
@@ -15,6 +18,8 @@ pub enum Token {
     Identifier(String),
     Number(String),
     StringLiteral(String),
+    Boolean(Booleans),
+    Keyword(Keywords),
     Whitespace(String),
     Operator(String),
     FullStop,
@@ -70,14 +75,45 @@ impl Lexer {
         }
     }
 
+    /// Peek at the Nth input `String`
+    /// 
+    /// Used as an immutable and flexible alternative to `iterate`
+    fn peek_n(&self, n: usize) -> Option<&String> {
+        if self.pos > self.input.len() {
+            None
+        } else if self.pos > n {
+            None
+        } else if self.input.len() <= n {
+            None
+        } else {
+            Some(&self.input[n])
+        }
+    }
+
     /// Peek at following input `String`
     /// 
     /// Used as an immutable alternative to `iterate`
-    fn peek_next(&self) -> Option<&String> {
-        if self.pos < self.input.len() {
-            Some(&self.input[self.pos])
+    // fn peek_next(&self) -> Option<&String> {
+    //     if self.pos < self.input.len() {
+    //         Some(&self.input[self.pos])
+    //     } else {
+    //         None
+    //     }
+    // }
+
+    /// Retrieve a selected length input slice
+    /// 
+    /// Takes the exclusive end of the slice (one more than the position of the ending string)
+    /// Returns an immutable reference to the input vector as a slice
+    fn get_input_slice(&self, end: usize) -> Option<&[String]> {
+        if self.pos > self.input.len() {
+            None    // Broken Lexer!
+        } else if self.pos > end {
+            None    // Would result in inverted vector
+        } else if self.input.len() < end {
+            None    // Array out of bounds
         } else {
-            None
+            Some(&self.input[self.pos..end])
         }
     }
 
@@ -92,18 +128,20 @@ impl Lexer {
         let mut tokens: Vec<Token> = Vec::new();
         
         // TODO: Error out if `ch` is not matched
-        while let Some(ch) = self.iterate() {
-            match ch.as_str() {
+        // Note: self.pos will actually always equal the following element when inside the while-let statement!
+        // TODO: Refactor self.pos into self.next or something similar...
+        while let Some(unicode_string) = self.iterate() {
+            match unicode_string.as_str() {
                 "{" => tokens.push(Token::LeftBrace),
                 "}" => tokens.push(Token::RightBrace),
                 "\"" => tokens.push(self.tokenize_string("\"")),
                 "'" => tokens.push(self.tokenize_string("'")),
-                "+" | "-" | "*" | "/" | "%" | "^" => tokens.push(Token::Operator(ch.to_string())),
+                "+" | "-" | "*" | "/" | "%" | "^" => tokens.push(Token::Operator(unicode_string.to_string())),
                 "." => tokens.push(Token::FullStop),
-                ch if ch.chars().all(|c| c.is_ascii_digit()) => {
-                    let mut number = ch.to_string();
-                    while let Some(next_ch) = self.peek_next() {
-                        if next_ch.chars().all(|c| c.is_ascii_digit()) {
+                unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) => {
+                    let mut number = unicode_string.to_string();
+                    while let Some(next_unicode_string) = self.peek_n(self.pos) {
+                        if next_unicode_string.chars().all(|c| c.is_ascii_digit()) {
                             number.push_str(&self.iterate().unwrap());
                         } else {
                             break;
@@ -111,8 +149,49 @@ impl Lexer {
                     }
                     tokens.push(Token::Number(number));
                 },
-                ch if ch.chars().all(|c| c.is_alphabetic()) => tokens.push(Token::Identifier(ch.to_string())),
-                ch if ch.chars().all(|c| c.is_whitespace()) => tokens.push(Token::Whitespace(ch.to_string())),
+                unicode_string if unicode_string.chars().all(|c| c.is_alphabetic()) => {
+                    // Takes alphabetic input and constructs one of three potential options:
+                    // 1. A boolean value ("true", "false")
+                    // 2. A keyword (see symbols::Keywords)
+                    // 3. An identifier (a sequence of alphanumeric characters or one of symbols::GenericSymbol)
+                    // TODO: Since the parent call to .all() returns true on an empty iterator,
+                    // make sure to return an error in this case -- otherwise empty strings become Identifiers!
+
+                    let mut temp = String::new();
+                    let token: Token;
+
+                    // We should error if unicode_string was empty, since it's a valid condition but an invalid identifier
+
+                    // Push the first character onto the stack before starting iteration
+                    temp.push_str(&unicode_string);
+
+                    // The set of valid symbols is that of an identifier, with booleans and keywords having subsets of this
+                    for following_unicode_string in &self.input[self.pos..] {
+                        match following_unicode_string {
+                            string if string.chars().all(|c| c.is_alphanumeric()) => {
+                                temp.push_str(string);
+                            },
+                            string if *string == "-".to_string() => {
+                                temp.push_str(string);
+                            },
+                            string if *string == "_".to_string() => {
+                                temp.push_str(string);
+                            }
+                            _ => break,
+                        }
+                    }
+
+                    match temp {
+                        t if t == "let".to_string() => token = Token::Keyword(Keywords::LET),
+                        t if t == "inherit".to_string() => token = Token::Keyword(Keywords::INHERIT),
+                        t if t == "fun".to_string() => token = Token::Keyword(Keywords::FUN),
+                        t if t == "true".to_string() => token = Token::Boolean(Booleans::TRUE),
+                        t if t == "false".to_string() => token = Token::Boolean(Booleans::FALSE),
+                        _ => token = Token::Identifier(temp),
+                    }
+                    tokens.push(token);
+                },
+                unicode_string if unicode_string.chars().all(|c| c.is_whitespace()) => tokens.push(Token::Whitespace(unicode_string.to_string())),
                 _ => {}, // TODO: Throw an appropriate error
             }
         }
@@ -285,6 +364,41 @@ mod tests {
         let input = vec!["abc".to_string()];
         let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::Identifier("abc".to_string()), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_bool_true() {
+        let input = vec!["true".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::Boolean(Booleans::TRUE), Token::EOF])
+    }
+
+    #[test]
+    fn matches_bool_false() {
+        let input = vec!["false".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::Boolean(Booleans::FALSE), Token::EOF])
+    }
+
+    #[test]
+    fn matches_keyword_let() {
+        let input = vec!["let".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::Keyword(Keywords::LET), Token::EOF])
+    }
+
+    #[test]
+    fn matches_keyword_inherit() {
+        let input = vec!["inherit".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::Keyword(Keywords::INHERIT), Token::EOF])
+    }
+
+    #[test]
+    fn matches_keyword_fun() {
+        let input = vec!["fun".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::Keyword(Keywords::FUN), Token::EOF])
     }
 
     // Tests for edge cases

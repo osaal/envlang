@@ -93,9 +93,23 @@ pub enum StringSymbols {
 /// -  `FUN`: Function assignment keyword `fun`
 /// 
 /// The enum derives the traits `Debug` and `Clone`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Keywords {
     LET,            // let
     INHERIT,        // inherit
     FUN,            // fun
+}
+
+/// Booleans
+/// 
+/// The booleans may not be used as identifiers.
+/// 
+/// -  `TRUE`: Boolean value `true`
+/// -  `FALSE`: Boolean value `false`
+/// 
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Booleans {
+    TRUE,           // true
+    FALSE,          // false
 }

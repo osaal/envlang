@@ -20,6 +20,7 @@ use crate::environment::EnvironmentConfig;
 use crate::environment::EnvName;
 use crate::environment::EnvScope;
 use crate::environment::EnvValue;
+use crate::symbols::Booleans;
 
 /// Envlang parser implementation
 /// 
@@ -80,6 +81,15 @@ impl Parser {
     pub fn parse_tokens(&mut self) -> Rc<Environment> {
         let global_env: Rc<Environment> = Environment::new(EnvironmentConfig::default());
 
+        // Cases to still cover:
+        // Token::Identifier(v) -> interpret identifier name, make sure it's unique, create new environment
+        // Token::LeftBrace/Token::RightBrace -> encapsulate new environment
+        // Token::Keyword(v) -> interpret keyword, check its requirements, create new environment if necessary
+        // Token::Operator(v) -> interpret operator
+        // Token::Whitespace(v) -> interpret whitespace, skip?
+        // Token::FullStop -> interpret fullstop as accessor operator
+        // Token::EOF -> do nothing, since we're done
+
         while let Some(token) = self.get_token() {
             match token {
                 Token::Number(_) => {
@@ -94,6 +104,12 @@ impl Parser {
                         Err(e) => panic!("{e}"),
                     }
                 },
+                Token::Boolean(_) => {
+                    match self.parse_boolean() {
+                        Ok(v) => global_env.add_element(v),
+                        Err(e) => panic!("{e}"),
+                    }
+                }
                 _ => {self.increment_pos()},
             }
         }
@@ -152,6 +168,36 @@ impl Parser {
         }
         return result;
     }
+
+    /// Parse a boolean
+    /// 
+    /// The function will return a boolean value or an error
+    fn parse_boolean(&mut self) -> Result<EnvValue, ParserError> {
+        let result: Result<EnvValue, ParserError>;
+
+        if let Some(token) = self.get_token() {
+            match token {
+                Token::Boolean(bool) => {
+                    // Match which boolean
+                    match bool {
+                        Booleans::TRUE => {
+                            result = Ok(EnvValue::BOOL(true));
+                            self.increment_pos();
+                        },
+                        Booleans::FALSE => {
+                            result = Ok(EnvValue::BOOL(false));
+                            self.increment_pos();
+                        },
+                        _ => result = Err(ParserError::InvalidBoolean),
+                    }
+                },
+                _ => result = Err(ParserError::TokenTypeMismatch),
+            }
+        } else {
+            result = Err(ParserError::NoToken);
+        }
+        return result;
+    }
 }
 
 /// Error type for Envlang parser
@@ -165,6 +211,7 @@ pub enum ParserError {
     Float(std::num::ParseFloatError),
     NoToken,
     TokenTypeMismatch,
+    InvalidBoolean,
 }
 
 /// Display custom errors
@@ -175,6 +222,7 @@ impl fmt::Display for ParserError {
             ParserError::Float(e) => write!(f, "Error in parsing float: {e}"),
             ParserError::NoToken => write!(f, "No token available in queue"),
             ParserError::TokenTypeMismatch => write!(f, "Token type mismatch"),
+            ParserError::InvalidBoolean => write!(f, "Invalid boolean lexing"),
         }
     }
 }
@@ -187,6 +235,7 @@ impl Error for ParserError {
             ParserError::Float(e) => Some(e),
             ParserError::NoToken => None,
             ParserError::TokenTypeMismatch => None,
+            ParserError::InvalidBoolean => None,
         }
     }
 }
@@ -260,6 +309,31 @@ mod tests {
         ]).tokenize();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::STRING("asd".to_string())])
+    }
+
+    #[test]
+    fn matches_bool_true() {
+        let lexed_input = Lexer::new(vec![
+            "t".to_string(),
+            "r".to_string(),
+            "u".to_string(),
+            "e".to_string()
+        ]).tokenize();
+        let global_env = Parser::new(lexed_input).parse_tokens();
+        assert_eq!(global_env.get_elements(), vec![EnvValue::BOOL(true)]);
+    }
+
+    #[test]
+    fn matches_bool_false() {
+        let lexed_input = Lexer::new(vec![
+            "f".to_string(),
+            "a".to_string(),
+            "l".to_string(),
+            "s".to_string(),
+            "e".to_string()
+        ]).tokenize();
+        let global_env = Parser::new(lexed_input).parse_tokens();
+        assert_eq!(global_env.get_elements(), vec![EnvValue::BOOL(false)]);
     }
 
     // This test was to benchmark two alternative approaches in handling lexing-parsing responsibilities
