@@ -38,6 +38,7 @@ pub struct Parser {
     input: Vec<Token>,
     pos: usize,
     line_ctr: usize,
+    column_ctr: usize,
 }
 
 impl Parser {
@@ -47,6 +48,7 @@ impl Parser {
             input,
             pos: 0,
             line_ctr: 0,
+            column_ctr: 0,
         }
     }
 
@@ -72,6 +74,7 @@ impl Parser {
     /// It is intended to be used after successful readings of the input vector
     fn increment_pos(&mut self) {
         self.pos += 1;
+        self.column_ctr += 1;
     }
 
     /// Get line number
@@ -80,6 +83,31 @@ impl Parser {
     /// Lines are recognised by new-line chars '\n' (Unix-like) and '\r\n' (Windows)
     pub fn get_line_number(&self) -> usize {
         self.line_ctr
+    }
+
+    /// Get line context for error messages
+    /// 
+    /// The function returns the text of the input file line which errored
+    fn get_line_context(&self, line: usize) -> String {
+        let mut context = String::new();
+        let mut current_line = 0;
+        let mut line_start = 0;
+        
+        for (pos, token) in self.input.iter().enumerate() {
+            if let Token::Whitespace(w) = token {
+                if w == "\n" || w == "\r\n" {
+                    if current_line == line {
+                        return self.input[line_start..pos]
+                            .iter()
+                            .map(|t| t.to_string())
+                            .collect::<String>();
+                    }
+                    current_line += 1;
+                    line_start = pos + 1;
+                }
+            }
+        }
+        return context;
     }
 
     /// Parsing
@@ -104,19 +132,19 @@ impl Parser {
                 Token::Number(_) => {
                     match self.parse_integer() {
                         Ok(v) => global_env.add_element(v),
-                        Err(e) => panic!("{e}"),
+                        Err(e) => panic!("{}{}", e, e.format_error_context(self, self.line_ctr, self.column_ctr)),
                     }
                 },
                 Token::StringLiteral(_) => {
                     match self.parse_string() {
                         Ok(v) => global_env.add_element(v),
-                        Err(e) => panic!("{e}"),
+                        Err(e) => panic!("{}{}", e, e.format_error_context(self, self.line_ctr, self.column_ctr)),
                     }
                 },
                 Token::Boolean(_) => {
                     match self.parse_boolean() {
                         Ok(v) => global_env.add_element(v),
-                        Err(e) => panic!("{e}"),
+                        Err(e) => panic!("{}{}", e, e.format_error_context(self, self.line_ctr, self.column_ctr)),
                     }
                 }
                 Token::Whitespace(v) => {
@@ -146,7 +174,9 @@ impl Parser {
 
         while let Some(token) = self.get_token() {
             match token {
-                Token::Number(t) => array.push_str(t),
+                Token::Number(t) => {
+                    array.push_str(t);
+                },
                 Token::FullStop => {
                     is_float = true;
                     array.push_str(".");
@@ -157,10 +187,12 @@ impl Parser {
         }
 
         if is_float {
-            let result = array.parse::<f64>()?;
+            let result = array.parse::<f64>()
+                .map_err(|e| (e, self.line_ctr, self.column_ctr, array.clone()))?;
             wrapped = EnvValue::FLOAT(result);
         } else {
-            let result = array.parse::<isize>()?;
+            let result = array.parse::<isize>()
+                .map_err(|e| (e, self.line_ctr, self.column_ctr, array.clone()))?;
             wrapped = EnvValue::INT(result);
         }
 
@@ -178,10 +210,15 @@ impl Parser {
                     result = Ok(EnvValue::STRING(t.to_string()));
                     self.increment_pos();
                 },
-                _ => result = Err(ParserError::TokenTypeMismatch), // This branch should never occur!
+                other => result = Err(ParserError::TokenTypeMismatch(
+                    self.line_ctr,
+                    self.column_ctr,
+                    other.to_string(),
+                    "string literal".to_string()
+                )),
             }
         } else {
-            result = Err(ParserError::NoToken);
+            result = Err(ParserError::NoToken(self.line_ctr, self.column_ctr));
         }
         return result;
     }
@@ -205,13 +242,22 @@ impl Parser {
                             result = Ok(EnvValue::BOOL(false));
                             self.increment_pos();
                         },
-                        _ => result = Err(ParserError::InvalidBoolean),
+                        _ => result = Err(ParserError::InvalidBoolean(
+                            self.line_ctr,
+                            self.column_ctr,
+                            bool.to_string()
+                        )),
                     }
                 },
-                _ => result = Err(ParserError::TokenTypeMismatch),
+                other => result = Err(ParserError::TokenTypeMismatch(
+                    self.line_ctr,
+                    self.column_ctr,
+                    other.to_string(),
+                    "boolean".to_string()
+                )),
             }
         } else {
-            result = Err(ParserError::NoToken);
+            result = Err(ParserError::NoToken(self.line_ctr, self.column_ctr));
         }
         return result;
     }
@@ -221,53 +267,80 @@ impl Parser {
 /// 
 /// The error types match the attempted parsing from Envlang into Rust atomics
 /// 
-/// In general, the error types wrap `std` library errors
+/// Errors always contain at least the following data:
+/// -  `usize`: The line number in the original input file at which the error occurred
+/// -  `usize`: The column number for the line in the original input file at which the error occurred
+/// 
+/// Errors may optionally include information on expected and actual values, formatted as `String`s
+/// 
+/// The types `Int` and `Float` wrap std::error::Error.
 #[derive(Debug)]
 pub enum ParserError {
-    Int(std::num::ParseIntError),
-    Float(std::num::ParseFloatError),
-    NoToken,
-    TokenTypeMismatch,
-    InvalidBoolean,
+    Int(std::num::ParseIntError, usize, usize, String),
+    Float(std::num::ParseFloatError, usize, usize, String),
+    NoToken(usize, usize),
+    TokenTypeMismatch(usize, usize, String, String),
+    InvalidBoolean(usize, usize, String),
 }
 
 /// Display custom errors
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ParserError::Int(e) => write!(f, "Error in parsing integer: {e}"),
-            ParserError::Float(e) => write!(f, "Error in parsing float: {e}"),
-            ParserError::NoToken => write!(f, "No token available in queue"),
-            ParserError::TokenTypeMismatch => write!(f, "Token type mismatch"),
-            ParserError::InvalidBoolean => write!(f, "Invalid boolean lexing"),
+            ParserError::Int(e, line, col, input) =>
+                write!(f, "Line {}, Column {}: Error parsing integer '{}': {}", 
+                    line, col, input, e),
+            ParserError::Float(e, line, col, input) =>
+                write!(f, "Line {}, Column {}: Error parsing float '{}': {}", 
+                    line, col, input, e),
+            ParserError::NoToken(line, col) =>
+                write!(f, "Line {}, Column {}: Unexpected end of input", 
+                    line, col),
+            ParserError::TokenTypeMismatch(line, col, found, expected) =>
+                write!(f, "Line {}, Column {}: Expected {}, found '{}'", 
+                    line, col, expected, found),
+            ParserError::InvalidBoolean(line, col, input) =>
+                write!(f, "Line {}, Column {}: Invalid boolean '{}' - must be 'true' or 'false'", 
+                    line, col, input),
         }
     }
 }
+
 
 /// Implement currying `ParserError`s with the `?` operator
 impl Error for ParserError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            ParserError::Int(e) => Some(e),
-            ParserError::Float(e) => Some(e),
-            ParserError::NoToken => None,
-            ParserError::TokenTypeMismatch => None,
-            ParserError::InvalidBoolean => None,
+            ParserError::Int(e, _, _, _) => Some(e),
+            ParserError::Float(e, _, _, _) => Some(e),
+            ParserError::NoToken(_, _) => None,
+            ParserError::TokenTypeMismatch(_, _, _, _) => None,
+            ParserError::InvalidBoolean(_, _, _) => None,
         }
     }
 }
 
 /// Convert `ParseIntError` into `ParserError`
-impl From<std::num::ParseIntError> for ParserError {
-    fn from(e: std::num::ParseIntError) -> ParserError {
-        ParserError::Int(e)
+impl From<(std::num::ParseIntError, usize, usize, String)> for ParserError {
+    fn from((e, line, column, input): (std::num::ParseIntError, usize, usize, String)) -> ParserError {
+        ParserError::Int(e, line, column, input)
     }
 }
 
 /// Convert `ParseFloatError` into `ParserError`
-impl From<std::num::ParseFloatError> for ParserError {
-    fn from(e: std::num::ParseFloatError) -> ParserError {
-        ParserError::Float(e)
+impl From<(std::num::ParseFloatError, usize, usize, String)> for ParserError {
+    fn from((e, line, column, input): (std::num::ParseFloatError, usize, usize, String)) -> ParserError {
+        ParserError::Float(e, line, column, input)
+    }
+}
+
+impl ParserError {
+    /// Format line context for error messages
+    /// 
+    /// The function returns a formatted string to be used in reporting line contexts in error messages
+    fn format_error_context(&self, parser: &Parser, line: usize, column: usize) -> String {
+        let line_content = parser.get_line_context(line);
+        format!("\n{}\n{}^", line_content, " ".repeat(column))
     }
 }
 

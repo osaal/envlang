@@ -100,6 +100,16 @@ pub enum Keywords {
     FUN,            // fun
 }
 
+impl ToString for Keywords {
+    fn to_string(&self) -> String {
+        match self {
+            Keywords::LET => "let".to_string(),
+            Keywords::INHERIT => "inherit".to_string(),
+            Keywords::FUN => "fun".to_string(),
+        }
+    }
+}
+
 /// Booleans
 /// 
 /// The booleans may not be used as identifiers.
@@ -112,4 +122,13 @@ pub enum Keywords {
 pub enum Booleans {
     TRUE,           // true
     FALSE,          // false
+}
+
+impl ToString for Booleans {
+    fn to_string(&self) -> String {
+        match self {
+            Booleans::TRUE => "true".to_string(),
+            Booleans::FALSE => "false".to_string()
+        }
+    }
 }
