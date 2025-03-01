@@ -7,6 +7,12 @@ Features of `Envlang`:
 - Pure, isolated functions: always an input, always an output, and no side-effects
 - Functional-style chaining and piping of inputs/outputs
 
+## Resources for learning Envlang
+
+This document tries to explain the basics of how Envlang functions. During alpha development, not every functionality might be implemented -- check [STRUCTURE.md](STRUCTURE.md) for a more up-to-date list of implemented functionality.
+
+The document [grammar.ebnf](grammar.ebnf) presents the Envlang grammar in Extended Backus-Naur Form. Note, that the file is a descriptive document, and is not actually used to generate the lexer and/or parser -- please leave an Issue if the grammar deviates from actual behaviour in Envlang.
+
 ## Data Types
 
 `Envlang` has the following data types:

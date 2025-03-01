@@ -1,5 +1,9 @@
 # Structure of Envlang operations
 
+This file documents how Envlang reads in input files, lexes and parses meaningful tokens, and finally executes the interpreted command structure to produce output.
+
+**While Envlang is in alpha development, this file can be used to track progress on the interpreter.**
+
 ## CLI operation and reading in an Envlang script
 
 Usage:
@@ -40,13 +44,17 @@ Errors if:
 
 ## Parse Tokens into ParsedInputTypes
 
-- Status: NYI
+- Status: IN PROGRESS 🚧
 
 The successful results from `crate::lexer::Lexer.tokenize()` should be passed to `crate::parser::parse_tokens()`.
 
-Returns a `Vec<ParsedInputType>`, where each `ParsedInputType` is a valid Envlang data type.
+Returns an `Rc<Environment>`, where the environment represents the global environment. Each token is parsed and hierarchized into an abstract syntax tree representing the layers of environments within each other.
 
-Errors if:
-- ???
+Errors if parsing fails:
+-  Numbers lexed as such will error if they cannot be converted into `f64` or `isize` (for floats and integers, respectively)
+-  Strings lexed as such error if the lexer somehow produced an invalid string literal token, or if there is no token to process
+-  Booleans lexed as such error if the lexer somehow produced anything else than 'true' or 'false', if it produced something else than a boolean, or if there is no token to process
+
+All errors are wrapped in the custom `ParserError` type, which implements descriptive error messages including line numbers (interpreted from new-line characters in the source file) and error contexts.
 
 ## Further steps to be implemented...
