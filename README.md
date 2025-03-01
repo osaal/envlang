@@ -36,6 +36,10 @@ cargo build
 cargo run -- filename.envl
 ```
 
+## Syntax
+
+The syntax is documented and updated in the [Basics Markdown file](docs/Basics.md) of this repository. Future versions may move to a dedicated page.
+
 ## Issues
 
 If you have issues running Envlang, firstly: This is to be expected, considering the very early development cycle of Envlang.
