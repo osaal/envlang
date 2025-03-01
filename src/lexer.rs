@@ -422,4 +422,11 @@ mod tests {
         let tokens = Lexer::new(input).tokenize();
         assert_eq!(tokens, vec![Token::EOF]);
     }
+
+    #[test]
+    fn handles_windows_newline() {
+        let input = vec!["\r\n".to_string()];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::Whitespace("\r\n".to_string()), Token::EOF]);
+    }
 }

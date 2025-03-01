@@ -37,6 +37,7 @@ use crate::symbols::Booleans;
 pub struct Parser {
     input: Vec<Token>,
     pos: usize,
+    line_ctr: usize,
 }
 
 impl Parser {
@@ -44,7 +45,8 @@ impl Parser {
     pub fn new(input: Vec<Token>) -> Self {
         Self {
             input,
-            pos: 0
+            pos: 0,
+            line_ctr: 0,
         }
     }
 
@@ -72,6 +74,14 @@ impl Parser {
         self.pos += 1;
     }
 
+    /// Get line number
+    /// 
+    /// The function returns the number of lines in the input file
+    /// Lines are recognised by new-line chars '\n' (Unix-like) and '\r\n' (Windows)
+    pub fn get_line_number(&self) -> usize {
+        self.line_ctr
+    }
+
     /// Parsing
     /// 
     /// The function will return an nested `Environment` structure
@@ -86,9 +96,8 @@ impl Parser {
         // Token::LeftBrace/Token::RightBrace -> encapsulate new environment
         // Token::Keyword(v) -> interpret keyword, check its requirements, create new environment if necessary
         // Token::Operator(v) -> interpret operator
-        // Token::Whitespace(v) -> interpret whitespace, skip?
+        // Token::Whitespace(v) -> ADD: if new-line, track line number for errors
         // Token::FullStop -> interpret fullstop as accessor operator
-        // Token::EOF -> do nothing, since we're done
 
         while let Some(token) = self.get_token() {
             match token {
@@ -110,6 +119,14 @@ impl Parser {
                         Err(e) => panic!("{e}"),
                     }
                 }
+                Token::Whitespace(v) => {
+                    match v.as_str() {
+                        "\n" | "\r\n" => self.line_ctr += 1,
+                        _ => {}
+                    }
+                    self.increment_pos()
+                },
+                Token::EOF => break,
                 _ => {self.increment_pos()},
             }
         }
@@ -262,6 +279,34 @@ mod tests {
     use crate::environment::*;
 
     use std::time::Instant;
+
+    #[test]
+    fn tracks_unix_newlines() {
+        let lexed_input = Lexer::new(vec![
+            "1".to_string(),
+            "\n".to_string(),
+            "2".to_string(),
+            "\n".to_string(),
+            "3".to_string()
+        ]).tokenize();
+        let mut parser = Parser::new(lexed_input);
+        parser.parse_tokens();
+        assert_eq!(parser.get_line_number(), 2);
+    }
+
+    #[test]
+    fn tracks_windows_newlines() {
+        let lexed_input = Lexer::new(vec![
+            "1".to_string(),
+            "\r\n".to_string(),
+            "2".to_string(),
+            "\r\n".to_string(),
+            "3".to_string()
+        ]).tokenize();
+        let mut parser = Parser::new(lexed_input);
+        parser.parse_tokens();
+        assert_eq!(parser.get_line_number(), 2);
+    }
 
     #[test]
     fn matches_integer() {

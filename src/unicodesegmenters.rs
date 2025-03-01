@@ -43,4 +43,18 @@ pub fn segment_words(input: String) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn handles_crlf_as_single_grapheme() {
+        let input = "line1\r\nline2\nline3\r\nline4".to_string();
+        let segments = segment_graphemes(input);
+        
+        assert!(segments.contains(&"\r\n".to_string()));
+        
+        // Count the actual segments to verify no splitting
+        let newlines: Vec<&String> = segments.iter()
+            .filter(|&s| s == "\r\n" || s == "\n")
+            .collect();
+        assert_eq!(newlines.len(), 3);
+    }
 }
