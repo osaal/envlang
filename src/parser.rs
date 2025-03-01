@@ -88,6 +88,12 @@ impl Parser {
                         Err(e) => panic!("{e}"),
                     }
                 },
+                Token::StringLiteral(_) => {
+                    match self.parse_string() {
+                        Ok(v) => global_env.add_element(v),
+                        Err(e) => panic!("{e}"),
+                    }
+                },
                 _ => {self.increment_pos()},
             }
         }
@@ -127,6 +133,25 @@ impl Parser {
 
         return Ok(wrapped);
     }
+
+    /// Parse a string literal
+    /// 
+    /// The function will return a String value or an error
+    fn parse_string(&mut self) -> Result<EnvValue, ParserError> {
+        let result: Result<EnvValue, ParserError>;
+        if let Some(token) = self.get_token() {
+            match token {
+                Token::StringLiteral(t) => {
+                    result = Ok(EnvValue::STRING(t.to_string()));
+                    self.increment_pos();
+                },
+                _ => result = Err(ParserError::TokenTypeMismatch), // This branch should never occur!
+            }
+        } else {
+            result = Err(ParserError::NoToken);
+        }
+        return result;
+    }
 }
 
 /// Error type for Envlang parser
@@ -138,6 +163,8 @@ impl Parser {
 pub enum ParserError {
     Int(std::num::ParseIntError),
     Float(std::num::ParseFloatError),
+    NoToken,
+    TokenTypeMismatch,
 }
 
 /// Display custom errors
@@ -146,6 +173,8 @@ impl fmt::Display for ParserError {
         match self {
             ParserError::Int(e) => write!(f, "Error in parsing integer: {e}"),
             ParserError::Float(e) => write!(f, "Error in parsing float: {e}"),
+            ParserError::NoToken => write!(f, "No token available in queue"),
+            ParserError::TokenTypeMismatch => write!(f, "Token type mismatch"),
         }
     }
 }
@@ -156,6 +185,8 @@ impl Error for ParserError {
         match self {
             ParserError::Int(e) => Some(e),
             ParserError::Float(e) => Some(e),
+            ParserError::NoToken => None,
+            ParserError::TokenTypeMismatch => None,
         }
     }
 }
@@ -216,6 +247,19 @@ mod tests {
         ]).tokenize();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::FLOAT(123.0)]);
+    }
+
+    #[test]
+    fn matches_string() {
+        let lexed_input = Lexer::new(vec![
+            "\"".to_string(),
+            "a".to_string(),
+            "s".to_string(),
+            "d".to_string(),
+            "\"".to_string()
+        ]).tokenize();
+        let global_env = Parser::new(lexed_input).parse_tokens();
+        assert_eq!(global_env.get_elements(), vec![EnvValue::STRING("asd".to_string())])
     }
 
     // This test was to benchmark two alternative approaches in handling lexing-parsing responsibilities

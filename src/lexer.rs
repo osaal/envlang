@@ -128,11 +128,11 @@ impl Lexer {
     /// The function will continue to iterate until the given closing delimiter is found
     fn tokenize_string(&mut self, matched: &str) -> Token {
         let mut value: String = String::new();
-        value.push_str(matched);
 
         while let Some(ch) = self.iterate() {
-            value.push_str(&ch);
-            if ch == matched {
+            if ch != matched {
+                value.push_str(&ch);
+            } else {
                 break;
             }
         }
@@ -163,16 +163,58 @@ mod tests {
 
     #[test]
     fn matches_singlequoted_string() {
-        let input = vec!["'".to_string(), "a".to_string(), "s".to_string(), "d".to_string(), "'".to_string()];
+        let input = vec![
+            "'".to_string(),
+            "a".to_string(),
+            "s".to_string(),
+            "d".to_string(),
+            "'".to_string()
+        ];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::StringLiteral("'asd'".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::StringLiteral("asd".to_string()), Token::EOF]);
     }
 
     #[test]
     fn matches_doublequoted_string() {
-        let input = vec!["\"".to_string(), "a".to_string(), "s".to_string(), "d".to_string(), "\"".to_string()];
+        let input = vec![
+            "\"".to_string(),
+            "a".to_string(),
+            "s".to_string(),
+            "d".to_string(),
+            "\"".to_string()
+        ];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::StringLiteral("\"asd\"".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::StringLiteral("asd".to_string()), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_nested_doublequoted_string() {
+        let input = vec![
+            "\"".to_string(),
+            "'".to_string(),
+            "a".to_string(),
+            "s".to_string(),
+            "d".to_string(),
+            "'".to_string(),
+            "\"".to_string()
+        ];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::StringLiteral("'asd'".to_string()), Token::EOF])
+    }
+
+    #[test]
+    fn matches_nested_singlequoted_string() {
+        let input = vec![
+            "'".to_string(),
+            "\"".to_string(),
+            "a".to_string(),
+            "s".to_string(),
+            "d".to_string(),
+            "\"".to_string(),
+            "'".to_string()
+        ];
+        let tokens = Lexer::new(input).tokenize();
+        assert_eq!(tokens, vec![Token::StringLiteral("\"asd\"".to_string()), Token::EOF])
     }
 
     #[test]
@@ -257,7 +299,7 @@ mod tests {
     fn emojis_are_strings() {
         let input = vec!["\"".to_string(), "😺".to_string(), "\"".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::StringLiteral("\"😺\"".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::StringLiteral("😺".to_string()), Token::EOF]);
     }
     
     #[test]
