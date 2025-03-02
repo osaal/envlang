@@ -4,6 +4,8 @@ This file documents how Envlang reads in input files, lexes and parses meaningfu
 
 **While Envlang is in alpha development, this file can be used to track progress on the interpreter.**
 
+**Update 2 March 2025**: The internal structure of Envlang will be rewritten to accommodate better separation of concerns. This document is outdated for the time being.
+
 ## CLI operation and reading in an Envlang script
 
 Usage:
