@@ -6,7 +6,7 @@ use std::fs::read_to_string;
 
 /// Read an `.envl` file
 /// 
-/// Returns a `Result<String, E>`
+/// Returns a `Result<String, std::io::Error>`
 /// 
 /// # Errors
 /// Possible errors are all the usual `std::io::Error`s.
@@ -28,10 +28,16 @@ pub fn read_file(path: &str) -> Result<String, std::io::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Test that read_file returns an error when the file does not have the .envl extension
+
     #[test]
     fn invalid_file_extension() {
         let result = read_file("io_invalidextension.txt");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn file_does_not_exist() {
+        let result = read_file("doesnotexist.envl");
         assert!(result.is_err());
     }
 }
