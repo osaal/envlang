@@ -31,13 +31,19 @@ mod tests {
 
     #[test]
     fn invalid_file_extension() {
-        let result = read_file("io_invalidextension.txt");
+        let result = read_file("tests/data/io_invalidextension.txt");
         assert!(result.is_err());
     }
 
     #[test]
     fn file_does_not_exist() {
-        let result = read_file("doesnotexist.envl");
+        let result = read_file("tests/data/doesnotexist.envl");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn file_is_read() {
+        let result = read_file("tests/data/io_validextension.envl").unwrap();
+        assert_eq!(result, "here is some text\nwith\nwhite\nspace".to_string())
     }
 }
