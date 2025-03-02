@@ -1,4 +1,4 @@
-//! Envlang internal input/ouutput functions
+//! Envlang internal input/output functions
 //! 
 //! These functions are used by the Envlang interpreter to read and write `.envl` files
 

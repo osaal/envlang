@@ -3,5 +3,13 @@ name = "envlang"
 version = "0.5.1"
 edition = "2021"
 
+[lib]
+name = "envlang"
+path = "src/lib.rs"
+
+[[bin]]
+name = "envlang"
+path = "src/main.rs"
+
 [dependencies]
 unicode-segmentation = "1.12.0"

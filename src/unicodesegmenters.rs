@@ -25,7 +25,7 @@ use unicode_segmentation::UnicodeSegmentation;
 /// 
 /// let input = "Hello, 世界!";
 /// let segments = segment_graphemes(input);
-/// assert_eq!(segments.len(), 9);
+/// assert_eq!(segments.len(), 10);
 /// ```
 pub fn segment_graphemes(input: &str) -> Vec<String> {
     UnicodeSegmentation::graphemes(input, true)
