@@ -27,10 +27,10 @@
     - [x] Implementation
     - [x] Tests
     - [x] Documentation
-- [ ] Lexer (started in version 0.5.2)
-    - [ ] Implementation
-    - [ ] Tests
-    - [ ] Documentation
+- [x] Lexer (finished in version 0.5.2)
+    - [x] Implementation
+    - [x] Tests
+    - [x] Documentation
 - [ ] Parser
     - [ ] Implementation
     - [ ] Tests
