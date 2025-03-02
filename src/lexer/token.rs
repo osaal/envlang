@@ -1,16 +1,17 @@
 use crate::symbols::{Booleans, Keywords};
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     LeftBrace,
     RightBrace,
-    Identifier(String),
-    Number(String),
-    StringLiteral(String),
+    Identifier(Rc<str>),
+    Number(Rc<str>),
+    StringLiteral(Rc<str>),
     Boolean(Booleans),
     Keyword(Keywords),
-    Whitespace(String),
-    Operator(String),
+    Whitespace(Rc<str>),
+    Operator(Rc<str>),
     FullStop,
     EOF,
 }

@@ -10,13 +10,22 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 ### Version 0.5.2
 
+#### Breaking changes
+Due to the change in how `Token`s store their data (see below), the `Parser` is currently broken. This will be fixed in the following update.
+
 #### Major changes
 
-Envlang library code is now organized into sub-modules, where declarations and implementations are coupled together, but split apart from other declarations and implementations. For instance, the lexer now lives in `envlang::lexer` and publicly exposes the crates `lexer::error` and `lexer::token`.
+- Envlang library code is now organized into sub-modules, where declarations and implementations are coupled together, but split apart from other declarations and implementations. For instance, the lexer now lives in `envlang::lexer` and publicly exposes the crates `lexer::error` and `lexer::token`.
+- The Lexer now throws errors. See `LexerError` for an enumeration of all error types.
+- String-based Tokens now contain reference-counted pointers to `str`s as opposed to regular `String`s. This reduces memory overhead and speeds up accessing and copying markedly.
 
 #### Minor changes
 
-None so far.
+- Lexer methods have been fixed to accommodate the changes in Token data types. All methods now return `Rc<str>`s in places they used to return `String`s.
+- The method `Lexer.get_input_length` now returns a Result with detailed error information.
+- `Lexer.tokenize` has seen major internal changes due to the change in Token types, but the external API still stays the same.
+- Added new tests for `LexerError` types
+- Fixed old `Lexer` tests to conform to new Token data types
 
 ### Version 0.5.1
 

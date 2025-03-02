@@ -15,6 +15,8 @@ pub use token::Token;
 pub use error::LexerError;
 
 use crate::symbols::{Keywords, Booleans};
+use std::rc::Rc;
+use std::borrow::Borrow;
 
 /// Envlang lexer
 /// 
@@ -32,8 +34,8 @@ use crate::symbols::{Keywords, Booleans};
 /// 
 /// [`segment_graphemes()`]: ../unicodesegmenters/fn.segment_graphemes.html
 pub struct Lexer {
-    input: Vec<String>,
-    pos: usize
+    input: Vec<Rc<str>>,
+    next: usize
 }
 
 impl Lexer {
@@ -45,8 +47,8 @@ impl Lexer {
     /// The Lexer will still work with a non-segmented input, but the results will not be accurate for many Unicode characters
     pub fn new(input: Vec<String>) -> Self {
         Self {
-            input,
-            pos: 0
+            input: input.into_iter().map(|s| Rc::from(s.as_str())).collect(),
+            next: 0
         }
     }
 
@@ -55,10 +57,10 @@ impl Lexer {
     /// The function will return the next character in the input
     /// 
     /// It is intended to be used in a while let loop
-    fn iterate(&mut self) -> Option<String> {
-        if self.pos < self.input.len() {
-            let ch = self.input[self.pos].clone();
-            self.pos += 1;
+    fn iterate(&mut self) -> Option<Rc<str>> {
+        if self.next < self.input.len() {
+            let ch = Rc::clone(&self.input[self.next]);
+            self.next += 1;
             return Some(ch);
         } else {
             return None;
@@ -68,42 +70,41 @@ impl Lexer {
     /// Peek at the Nth input `String`
     /// 
     /// Used as an immutable and flexible alternative to `iterate`
-    fn peek_n(&self, n: usize) -> Option<&String> {
-        if self.pos > self.input.len() {
+    fn peek_n(&self, n: usize) -> Option<Rc<str>> {
+        if self.next > self.input.len() {
             None
-        } else if self.pos > n {
+        } else if self.next > n {
             None
         } else if self.input.len() <= n {
             None
         } else {
-            Some(&self.input[n])
+            Some(Rc::clone(&self.input[n]))
         }
     }
-
-    /// Peek at following input `String`
-    /// 
-    /// Used as an immutable alternative to `iterate`
-    // fn peek_next(&self) -> Option<&String> {
-    //     if self.pos < self.input.len() {
-    //         Some(&self.input[self.pos])
-    //     } else {
-    //         None
-    //     }
-    // }
 
     /// Retrieve a selected length input slice
     /// 
     /// Takes the exclusive end of the slice (one more than the position of the ending string)
-    /// Returns an immutable reference to the input vector as a slice
-    fn get_input_slice(&self, end: usize) -> Option<&[String]> {
-        if self.pos > self.input.len() {
-            None    // Broken Lexer!
-        } else if self.pos > end {
-            None    // Would result in inverted vector
-        } else if self.input.len() < end {
-            None    // Array out of bounds
+    /// Returns a slice of `Rc<str>`s
+    /// 
+    /// # Errors
+    /// 
+    /// Returns:
+    /// - `LexerError::BrokenLexer` if the currently-held position is beyond input length
+    /// - `LexerError::InvertedSlice` if the start position is greater than the end
+    /// - `LexerError::SliceOutOfBounds` if the end position is beyond input length
+    fn get_input_slice(&self, end: usize) -> Result<&[Rc<str>], LexerError> {
+        let length: usize = self.input.len();
+        let pos: usize = self.next;
+
+        if pos > length {
+            Err(LexerError::BrokenLexer(pos, length))
+        } else if pos > end {
+            Err(LexerError::InvertedSlice(pos, end))
+        } else if length < end {
+            Err(LexerError::SliceOutOfBounds(pos, end, length))
         } else {
-            Some(&self.input[self.pos..end])
+            Ok(&self.input[pos..end])
         }
     }
 
@@ -111,7 +112,7 @@ impl Lexer {
     /// 
     /// The function will return a vector of `Token` types
     /// 
-    /// It iterates over all Strings in the input and matches them to the appropriate `Token` type
+    /// It iterates over all `Rc<str>`s in the input and matches them to the appropriate `Token` type
     /// 
     /// Strings are handled with a private function `tokenize_string`, and can handle both double- and single-quoted strings (mixing is okay)
     pub fn tokenize(&mut self) -> Vec<Token> {
@@ -121,23 +122,23 @@ impl Lexer {
         // Note: self.pos will actually always equal the following element when inside the while-let statement!
         // TODO: Refactor self.pos into self.next or something similar...
         while let Some(unicode_string) = self.iterate() {
-            match unicode_string.as_str() {
+            match unicode_string.borrow() {
                 "{" => tokens.push(Token::LeftBrace),
                 "}" => tokens.push(Token::RightBrace),
                 "\"" => tokens.push(self.tokenize_string("\"")),
                 "'" => tokens.push(self.tokenize_string("'")),
-                "+" | "-" | "*" | "/" | "%" | "^" => tokens.push(Token::Operator(unicode_string.to_string())),
+                "+" | "-" | "*" | "/" | "%" | "^" => tokens.push(Token::Operator(unicode_string)),
                 "." => tokens.push(Token::FullStop),
                 unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) => {
                     let mut number = unicode_string.to_string();
-                    while let Some(next_unicode_string) = self.peek_n(self.pos) {
+                    while let Some(next_unicode_string) = self.peek_n(self.next) {
                         if next_unicode_string.chars().all(|c| c.is_ascii_digit()) {
                             number.push_str(&self.iterate().unwrap());
                         } else {
                             break;
                         }
                     }
-                    tokens.push(Token::Number(number));
+                    tokens.push(Token::Number(Rc::from(number)));
                 },
                 unicode_string if unicode_string.chars().all(|c| c.is_alphabetic()) => {
                     // Takes alphabetic input and constructs one of three potential options:
@@ -156,17 +157,11 @@ impl Lexer {
                     temp.push_str(&unicode_string);
 
                     // The set of valid symbols is that of an identifier, with booleans and keywords having subsets of this
-                    for following_unicode_string in &self.input[self.pos..] {
-                        match following_unicode_string {
-                            string if string.chars().all(|c| c.is_alphanumeric()) => {
-                                temp.push_str(string);
-                            },
-                            string if *string == "-".to_string() => {
-                                temp.push_str(string);
-                            },
-                            string if *string == "_".to_string() => {
-                                temp.push_str(string);
-                            }
+                    for following_unicode_string in &self.input[self.next..] {
+                        match following_unicode_string.as_ref() {
+                            s if s.chars().all(|c| c.is_alphanumeric()) => temp.push_str(following_unicode_string),
+                            "-" => temp.push_str(following_unicode_string),
+                            "_" => temp.push_str(following_unicode_string),
                             _ => break,
                         }
                     }
@@ -177,11 +172,12 @@ impl Lexer {
                         t if t == "fun".to_string() => token = Token::Keyword(Keywords::FUN),
                         t if t == "true".to_string() => token = Token::Boolean(Booleans::TRUE),
                         t if t == "false".to_string() => token = Token::Boolean(Booleans::FALSE),
-                        _ => token = Token::Identifier(temp),
+                        _ => token = Token::Identifier(Rc::from(temp)),
                     }
                     tokens.push(token);
                 },
-                unicode_string if unicode_string.chars().all(|c| c.is_whitespace()) => tokens.push(Token::Whitespace(unicode_string.to_string())),
+                unicode_string if unicode_string.chars().all(|c| c.is_whitespace()) =>
+                    tokens.push(Token::Whitespace(Rc::from(unicode_string))),
                 _ => {}, // TODO: Throw an appropriate error
             }
         }
@@ -199,14 +195,14 @@ impl Lexer {
         let mut value: String = String::new();
 
         while let Some(ch) = self.iterate() {
-            if ch != matched {
+            if *ch != *matched {
                 value.push_str(&ch);
             } else {
                 break;
             }
         }
 
-        return Token::StringLiteral(value);
+        return Token::StringLiteral(Rc::from(value));
     }
 }
 
@@ -214,6 +210,59 @@ impl Lexer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Tests for error types
+    #[test]
+    fn error_input_slice_broken_lexer() {
+        let input = vec!["a".to_string(), "b".to_string()];
+        let mut lexer = Lexer::new(input);
+
+        // Break the lexer position manually
+        lexer.next = 3;
+
+        let result = lexer.get_input_slice(2);
+
+        assert!(matches!(
+            result,
+            Err(LexerError::BrokenLexer(pos, len)) if pos == 3 && len == 2
+        ));
+    }
+
+    #[test]
+    fn error_input_slice_inverted_slice() {
+        let input = vec!["a".to_string(), "b".to_string()];
+        let mut lexer = Lexer::new(input);
+        
+        // Move position to 2, try to get slice to position 1
+        lexer.next = 2;
+        
+        let result = lexer.get_input_slice(1);
+        assert!(matches!(result, 
+            Err(LexerError::InvertedSlice(start, end)) if start == 2 && end == 1
+        ));
+    }
+
+    #[test]
+    fn error_input_slice_out_of_bounds() {
+        let input = vec!["a".to_string(), "b".to_string()];
+        let lexer = Lexer::new(input);
+        
+        // Try to get slice beyond input length
+        let result = lexer.get_input_slice(3);
+        assert!(matches!(result, 
+            Err(LexerError::SliceOutOfBounds(pos, end, len)) if pos == 0 && end == 3 && len == 2
+        ));
+    }
+
+    #[test]
+    fn input_slice_success() {
+        let input = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let lexer = Lexer::new(input);
+        
+        let result = lexer.get_input_slice(2);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 2);
+    }
 
     // Tests for correct behaviour
     #[test]
@@ -240,7 +289,7 @@ mod tests {
             "'".to_string()
         ];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::StringLiteral("asd".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::StringLiteral(Rc::from("asd")), Token::EOF]);
     }
 
     #[test]
@@ -253,7 +302,7 @@ mod tests {
             "\"".to_string()
         ];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::StringLiteral("asd".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::StringLiteral(Rc::from("asd")), Token::EOF]);
     }
 
     #[test]
@@ -268,7 +317,7 @@ mod tests {
             "\"".to_string()
         ];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::StringLiteral("'asd'".to_string()), Token::EOF])
+        assert_eq!(tokens, vec![Token::StringLiteral(Rc::from("asd")), Token::EOF])
     }
 
     #[test]
@@ -283,49 +332,49 @@ mod tests {
             "'".to_string()
         ];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::StringLiteral("\"asd\"".to_string()), Token::EOF])
+        assert_eq!(tokens, vec![Token::StringLiteral(Rc::from("\"asd\"")), Token::EOF])
     }
 
     #[test]
     fn matches_add_operator() {
         let input = vec!["+".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Operator("+".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Rc::from("+")), Token::EOF]);
     }
 
     #[test]
     fn matches_subtract_operator() {
         let input = vec!["-".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Operator("-".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Rc::from("-")), Token::EOF]);
     }
 
     #[test]
     fn matches_multiply_operator() {
         let input = vec!["*".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Operator("*".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Rc::from("*")), Token::EOF]);
     }
 
     #[test]
     fn matches_divide_operator() {
         let input = vec!["/".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Operator("/".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Rc::from("/")), Token::EOF]);
     }
 
     #[test]
     fn matches_modulus_operator() {
         let input = vec!["%".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Operator("%".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Rc::from("%")), Token::EOF]);
     }
 
     #[test]
     fn matches_exponentiation_operator() {
         let input = vec!["^".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Operator("^".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Rc::from("^")), Token::EOF]);
     }
 
     #[test]
@@ -339,21 +388,21 @@ mod tests {
     fn matches_digits() {
         let input = vec!["12345".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Number("12345".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Number(Rc::from("12345")), Token::EOF]);
     }
 
     #[test]
     fn matches_whitespace() {
         let input = vec!["\n".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Whitespace("\n".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Whitespace(Rc::from("\n")), Token::EOF]);
     }
 
     #[test]
     fn matches_identifier() {
         let input = vec!["abc".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Identifier("abc".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Identifier(Rc::from("abc")), Token::EOF]);
     }
 
     #[test]
@@ -396,14 +445,14 @@ mod tests {
     fn handles_diacratic_identifier() {
         let input = vec!["üýö".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Identifier("üýö".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Identifier(Rc::from("üýö")), Token::EOF]);
     }
     
     #[test]
     fn emojis_are_strings() {
         let input = vec!["\"".to_string(), "😺".to_string(), "\"".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::StringLiteral("😺".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::StringLiteral(Rc::from("😺")), Token::EOF]);
     }
     
     #[test]
@@ -417,6 +466,6 @@ mod tests {
     fn handles_windows_newline() {
         let input = vec!["\r\n".to_string()];
         let tokens = Lexer::new(input).tokenize();
-        assert_eq!(tokens, vec![Token::Whitespace("\r\n".to_string()), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Whitespace(Rc::from("\r\n")), Token::EOF]);
     }
 }
