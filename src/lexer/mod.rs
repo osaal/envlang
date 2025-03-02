@@ -2,47 +2,19 @@
 //! 
 //! The lexer takes a Unicode-segmented `String` vector from [`segment_graphemes()`] and turns it into a vector of [`Token`]s.
 //! 
-//! These `Token`s are then intended to be [parsed] into meaningful data structures for the interpreter to evaluate.
+//! These `Token`s are then intended to be [parsed] into an Abstract Syntax Tree.
 //! 
 //! [`segment_graphemes()`]: ../unicodesegmenters/fn.segment_graphemes.html
 //! [`Token`]: ./enum.Token.html
 //! [parsed]: ../parser/index.html
 
-use crate::symbols::Keywords;
-use crate::symbols::Booleans;
+mod token;
+mod error;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Token {
-    LeftBrace,
-    RightBrace,
-    Identifier(String),
-    Number(String),
-    StringLiteral(String),
-    Boolean(Booleans),
-    Keyword(Keywords),
-    Whitespace(String),
-    Operator(String),
-    FullStop,
-    EOF,
-}
+pub use token::Token;
+pub use error::LexerError;
 
-impl ToString for Token {
-    fn to_string(&self) -> String {
-        match self {
-            Token::Number(n) => n.to_string(),
-            Token::StringLiteral(s) => format!("\"{}\"", s),
-            Token::Boolean(b) => b.to_string(),
-            Token::Identifier(i) => i.to_string(),
-            Token::Keyword(k) => k.to_string(),
-            Token::Operator(o) => o.to_string(),
-            Token::LeftBrace => "{".to_string(),
-            Token::RightBrace => "}".to_string(),
-            Token::FullStop => ".".to_string(),
-            Token::Whitespace(w) => w.to_string(),
-            Token::EOF => "end of file".to_string(),
-        }
-    }
-}
+use crate::symbols::{Keywords, Booleans};
 
 /// Envlang lexer
 /// 

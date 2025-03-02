@@ -23,11 +23,11 @@
     - [x] Implementation
     - [x] Tests
     - [x] Documentation
-- [ ] Unicode segmentation (started in version 0.5.1)
-    - [ ] Implementation
-    - [ ] Tests
-    - [ ] Documentation
-- [ ] Lexer
+- [x] Unicode segmentation (finished in version 0.5.1)
+    - [x] Implementation
+    - [x] Tests
+    - [x] Documentation
+- [ ] Lexer (started in version 0.5.2)
     - [ ] Implementation
     - [ ] Tests
     - [ ] Documentation

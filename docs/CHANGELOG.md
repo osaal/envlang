@@ -8,6 +8,16 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.2
+
+#### Major changes
+
+Envlang library code is now organized into sub-modules, where declarations and implementations are coupled together, but split apart from other declarations and implementations. For instance, the lexer now lives in `envlang::lexer` and publicly exposes the crates `lexer::error` and `lexer::token`.
+
+#### Minor changes
+
+None so far.
+
 ### Version 0.5.1
 
 #### Major changes
