@@ -14,13 +14,14 @@ use std::fmt;
 /// - Attempted operation parameters
 #[derive(Debug)]
 pub enum LexerError {
-    InvalidToken(String, usize),            // (token, pos)
+    InvalidToken(usize, String),            // (pos, token)
     UnterminatedString(usize, String),      // (pos, partial_string)
     EmptyIdentifier(usize),                 // (pos)
     BrokenLexer(usize, usize),              // (pos, input_len)
     InvertedSlice(usize, usize),            // (start, end)
     SliceOutOfBounds(usize, usize, usize),  // (pos, end, input_len)
-    IndexOutOfBounds(usize, usize, usize)   // (pos, idx, input_len)
+    IndexOutOfBounds(usize, usize, usize),  // (pos, idx, input_len)
+    UnrecognizedInput(usize, String),       // (pos, input)
 }
 
 impl Error for LexerError {}
@@ -28,20 +29,22 @@ impl Error for LexerError {}
 impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LexerError::InvalidToken(t, pos) => 
-                write!(f, "Lexer error at position {}: Invalid token: {}", pos, t),
+            LexerError::InvalidToken(pos, token) => 
+                write!(f, "Lexer error at position {}: Invalid token: {}", pos, token),
             LexerError::UnterminatedString(pos, partial) => 
                 write!(f, "Lexer error at position {}: Unterminated string literal '{}'", pos, partial),
             LexerError::EmptyIdentifier(pos) => 
                 write!(f, "Lexer error at position {}: Empty identifier", pos),
-            LexerError::BrokenLexer(pos, len) => 
+             LexerError::BrokenLexer(pos, len) => 
                 write!(f, "Lexer error: Lexer in invalid state: position {} beyond input length {}", pos, len),
             LexerError::InvertedSlice(start, end) => 
-                write!(f, "Lexer error: Invalid slice: start position {} greater than end position {}", start, end),
+                write!(f, "Lexer error: Invalid slice: Start position {} greater than end position {}", start, end),
             LexerError::SliceOutOfBounds(pos,end, len) => 
-                write!(f, "Lexer error: attempted to get position {} to {} from string with length {}", pos, end, len),
+                write!(f, "Lexer error: Attempted to get position {} to {} from string with length {}", pos, end, len),
             LexerError::IndexOutOfBounds(pos, idx, len) =>
-                write!(f, "Lexer error at position {}: attempted to access element at index {} from input with length {}", pos, idx, len)
+                write!(f, "Lexer error at position {}: Attempted to access element at index {} from input with length {}", pos, idx, len),
+            LexerError::UnrecognizedInput(pos, input) =>
+                write!(f, "Lexer error at position {}: Unrecognized input stream '{}'", pos, input)
         }
     }
 }

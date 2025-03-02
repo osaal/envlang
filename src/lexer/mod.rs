@@ -41,7 +41,13 @@ pub struct Lexer {
 impl Lexer {
     /// Lexer initialization
     /// 
-    /// The input is expected to be a Unicode grapheme-segmented vector of strings
+    /// Initializes a new Lexer with a given input vector
+    /// 
+    /// # Arguments
+    /// * `input` - A vector of Strings to be conformed to `Rc<str>`s and lexed
+    /// 
+    /// # Returns
+    /// A `Lexer` ready for lexing iteration
     /// 
     /// # Undefined Behaviour
     /// The Lexer will still work with a non-segmented input, but the results will not be accurate for many Unicode characters
@@ -71,9 +77,13 @@ impl Lexer {
     /// 
     /// Used as an immutable and flexible alternative to `iterate`
     /// 
-    /// # Errors
+    /// # Arguments
+    /// * `n` - the n-th input to retrieve
     /// 
-    /// Returns:
+    /// # Returns
+    /// A Result containing a successfully retrieved element from the input vector
+    /// 
+    /// # Errors
     /// - `LexerError::BrokenLexer` if the currently-held position is beyond input length
     /// - `LexerError::IndexOutOfBounds` if the index of the requested element is beyond input length
     fn peek_n(&self, n: usize) -> Result<Rc<str>, LexerError> {
@@ -91,12 +101,15 @@ impl Lexer {
 
     /// Retrieve a selected length input slice
     /// 
-    /// Takes the exclusive end of the slice (one more than the position of the ending string)
-    /// Returns a slice of `Rc<str>`s
+    /// Gets a slice from the current position to the given end parameter
+    /// 
+    /// # Arguments
+    /// * `end` - The exclusive end of the slice
+    /// 
+    /// # Returns
+    /// A Result containing a slice of input `Rc<str>`s
     /// 
     /// # Errors
-    /// 
-    /// Returns:
     /// - `LexerError::BrokenLexer` if the currently-held position is beyond input length
     /// - `LexerError::InvertedSlice` if the start position is greater than the end
     /// - `LexerError::SliceOutOfBounds` if the end position is beyond input length
@@ -117,100 +130,181 @@ impl Lexer {
 
     /// Tokenize the input
     /// 
-    /// The function will return a vector of `Token` types
+    /// Walks over the `input` vector and tokenizes it according to the syntax of Envlang.
     /// 
-    /// It iterates over all `Rc<str>`s in the input and matches them to the appropriate `Token` type
+    /// The function relies on a number of `tokenize_` methods to accurately classify the input.
+    /// These methods all return Result<Token, LexerError>, where the errors are curried to the return of this method.
+    /// See the documentation of each `tokenize_` method for their potential error values.
     /// 
-    /// Strings are handled with a private function `tokenize_string`, and can handle both double- and single-quoted strings (mixing is okay)
-    pub fn tokenize(&mut self) -> Vec<Token> {
+    /// # Returns
+    /// A Result containing a vector of appropriately matched Tokens
+    /// 
+    /// # Errors
+    /// - `LexerError::UnrecognizedInput` if a given input string does not match the syntax of Envlang
+    /// - Errors curried from the `tokenize_` methods
+    pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
         
-        // TODO: Error out if `ch` is not matched
-        // Note: self.pos will actually always equal the following element when inside the while-let statement!
         while let Some(unicode_string) = self.iterate() {
             match unicode_string.borrow() {
-                "{" => tokens.push(Token::LeftBrace),
-                "}" => tokens.push(Token::RightBrace),
-                "\"" => tokens.push(self.tokenize_string("\"")),
-                "'" => tokens.push(self.tokenize_string("'")),
-                "+" | "-" | "*" | "/" | "%" | "^" => tokens.push(Token::Operator(unicode_string)),
-                "." => tokens.push(Token::FullStop),
-                unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) => {
-                    let mut number = unicode_string.to_string();
-                    // We loop until 1) non-digit character, 2) end of input (IndexOutOfBounds error), 3) Invalid lexing state (BrokenLexer error)
-                    while let Ok(next_unicode_string) = self.peek_n(self.next) {
-                        if next_unicode_string.chars().all(|c| c.is_ascii_digit()) {
-                            // Safe to unwrap because of the error handled in the while let loop condition
-                            number.push_str(&self.iterate().unwrap());
-                        } else {
-                            break;
-                        }
-                    }
-                    tokens.push(Token::Number(Rc::from(number)));
-                },
-                unicode_string if unicode_string.chars().all(|c| c.is_alphabetic()) => {
-                    // Takes alphabetic input and constructs one of three potential options:
-                    // 1. A boolean value ("true", "false")
-                    // 2. A keyword (see symbols::Keywords)
-                    // 3. An identifier (a sequence of alphanumeric characters or one of symbols::GenericSymbol)
-                    // TODO: Since the parent call to .all() returns true on an empty iterator,
-                    // make sure to return an error in this case -- otherwise empty strings become Identifiers!
-
-                    let mut temp = String::new();
-                    let token: Token;
-
-                    // We should error if unicode_string was empty, since it's a valid condition but an invalid identifier
-
-                    // Push the first character onto the stack before starting iteration
-                    temp.push_str(&unicode_string);
-
-                    // The set of valid symbols is that of an identifier, with booleans and keywords having subsets of this
-                    for following_unicode_string in &self.input[self.next..] {
-                        match following_unicode_string.as_ref() {
-                            s if s.chars().all(|c| c.is_alphanumeric()) => temp.push_str(following_unicode_string),
-                            "-" => temp.push_str(following_unicode_string),
-                            "_" => temp.push_str(following_unicode_string),
-                            _ => break,
-                        }
-                    }
-
-                    match temp {
-                        t if t == "let".to_string() => token = Token::Keyword(Keywords::LET),
-                        t if t == "inherit".to_string() => token = Token::Keyword(Keywords::INHERIT),
-                        t if t == "fun".to_string() => token = Token::Keyword(Keywords::FUN),
-                        t if t == "true".to_string() => token = Token::Boolean(Booleans::TRUE),
-                        t if t == "false".to_string() => token = Token::Boolean(Booleans::FALSE),
-                        _ => token = Token::Identifier(Rc::from(temp)),
-                    }
-                    tokens.push(token);
-                },
+                "{" =>
+                    tokens.push(Token::LeftBrace),
+                "}" =>
+                    tokens.push(Token::RightBrace),
+                "\"" =>
+                    tokens.push(self.tokenize_string("\"")?),
+                "'" =>
+                    tokens.push(self.tokenize_string("'")?),
+                "+" | "-" | "*" | "/" | "%" | "^" =>
+                    tokens.push(Token::Operator(unicode_string)),
+                "." =>
+                    tokens.push(Token::FullStop),
+                unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) =>
+                    tokens.push(self.tokenize_number(unicode_string)?),
+                unicode_string if unicode_string.chars().all(|c| c.is_alphabetic()) =>
+                    tokens.push(self.tokenize_alphabetics(unicode_string)?),
                 unicode_string if unicode_string.chars().all(|c| c.is_whitespace()) =>
                     tokens.push(Token::Whitespace(Rc::from(unicode_string))),
-                _ => {}, // TODO: Throw an appropriate error
+                _ => return Err(LexerError::UnrecognizedInput(self.next, unicode_string.to_string()))
             }
         }
 
         tokens.push(Token::EOF);
-        return tokens;
+        return Ok(tokens);
     }
 
-    /// Tokenize a string
+    /// Tokenize a sequence of numbers
     /// 
-    /// The function tokenizes a string between matching start and end delimiters as given in `matched`
+    /// Matches one or more characters that conform to `char.is_ascii_digit()`
     /// 
-    /// The function will continue to iterate until the given closing delimiter is found
-    fn tokenize_string(&mut self, matched: &str) -> Token {
-        let mut value: String = String::new();
+    /// # Arguments
+    /// * `unicode_string` - The `str` to tokenize
+    /// 
+    /// # Returns
+    /// A Result containing a successfully parsed `Token::Number`
+    /// 
+    /// # Errors
+    /// - `LexerError::InvalidToken` if the given `unicode_string` is not an ASCII digit
+    /// 
+    /// The function is guaranteed to gracefully and silently handle other potential scenarios, so no further error conditions are necessary
+    fn tokenize_number(&mut self, unicode_string: &str) -> Result<Token, LexerError> {
+        let mut number = unicode_string.to_string();
+        
+        // Validate first character to exit early in case of inappropriate input
+        if !unicode_string.chars().all(|c| c.is_ascii_digit()) {
+            return Err(LexerError::InvalidToken(self.next, unicode_string.to_string()));
+            // TODO: Write test to check this error's pos value, in case we are off-by-one
+        }
 
-        while let Some(ch) = self.iterate() {
-            if *ch != *matched {
-                value.push_str(&ch);
-            } else {
+        number.push_str(unicode_string);
+
+        // We exit out in three conditions:
+        // 1. Hitting a non-digit character (valid termination, no error)
+        // 2. Reaching end of input (valid termination, no error)
+        // 3. Invalid lexer state (caught by the while-let loop, no error)
+        while let Ok(next_unicode_string) = self.peek_n(self.next) {
+            if !next_unicode_string.chars().all(|c| c.is_ascii_digit()) {
                 break;
+            }
+            number.push_str(&self.iterate().unwrap());
+        }
+
+        return Ok(Token::Number(Rc::from(number)));
+    }
+
+    /// Tokenize a sequence of alphanumeric characters
+    /// 
+    /// Matches potential non-string-delimited character sequences:
+    /// 1. Boolean values (true, false)
+    /// 2. Reserved keywords (see symbols::Keywords)
+    /// 3. Identifiers (a sequence of alphanumeric characters, may contain symbols::GenericSymbol)
+    /// 
+    /// # Arguments
+    /// * `unicode_string` - The `str` to tokenize
+    /// 
+    /// # Returns
+    /// A Result containing a successfully parsed Token of types:
+    /// - `Token::Keyword` if a keyword was recognised
+    /// - `Token::Boolean` if a boolean value was recognised
+    /// - `Token::Identifier` in other cases (if no errors were caused)
+    /// 
+    /// # Errors
+    /// - `LexerError::InvalidToken` if the input stream did not start with an alphabetic character
+    /// - `LexerError::EmptyIdentifier` if the input stream is empty
+    fn tokenize_alphabetics(&mut self, unicode_string: &str) -> Result<Token, LexerError> {
+        let mut temp = String::new();
+
+        if unicode_string == "" {
+            return Err(LexerError::EmptyIdentifier(self.next));
+        }
+
+        // Doesn't start with an alphabetic character == invalid identifier/boolean/keyword
+        if !unicode_string.chars().all(|c| c.is_alphabetic()) {
+            return Err(LexerError::InvalidToken(self.next, unicode_string.to_string()));
+        }
+
+        temp.push_str(unicode_string); // Push the first character onto the stack before starting iteration
+        
+        // The set of valid symbols is that of an identifier, with booleans and keywords having subsets of identifiers
+        while let Ok(following_unicode_string) = self.peek_n(self.next) {
+            match following_unicode_string.as_ref() {
+                s if s.chars().all(|c| c.is_alphanumeric()) ||
+                    s == "-" ||
+                    s == "_" => {
+                        temp.push_str(&self.iterate().unwrap());
+                    },
+                    _ => break,
             }
         }
 
-        return Token::StringLiteral(Rc::from(value));
+        match temp.as_str() {
+            "let" => Ok(Token::Keyword(Keywords::LET)),
+            "inherit" => Ok(Token::Keyword(Keywords::INHERIT)),
+            "fun" => Ok(Token::Keyword(Keywords::FUN)),
+            "true" => Ok(Token::Boolean(Booleans::TRUE)),
+            "false" => Ok(Token::Boolean(Booleans::FALSE)),
+            _ => Ok(Token::Identifier(Rc::from(temp))),
+        }
+    }
+    
+    /// Tokenize a string
+    /// 
+    /// Matches one or more characters in-between opening and closing string literal delimiters.
+    /// 
+    /// Note, that the function actually never specifies which delimiter to use! It is up to the calling context to supply an appropriate delimiter.
+    /// 
+    /// # Arguments
+    /// * `matched` - The delimiter used.
+    /// 
+    /// # Returns
+    /// A Result containing a successfully parsed `Token::StringLiteral`
+    /// 
+    /// # Errors
+    /// - `LexerError::UnterminatedString` if the input ends before a closing delimiter is found, or if the lexer is broken
+    /// - Other errors curried from `peek_n()`
+    fn tokenize_string(&mut self, matched: &str) -> Result<Token, LexerError> {
+        let mut value: String = String::new();
+        let start_pos = self.next;
+
+        loop {
+            match self.peek_n(self.next) {
+                Ok(ch) => {
+                    if ch.as_ref() != matched {
+                        value.push_str(&self.iterate().unwrap());
+                    } else {
+                        self.iterate(); // Skip over the closing brace
+                        break;
+                    }
+                },
+                Err(LexerError::IndexOutOfBounds(_, _, _)) |
+                Err(LexerError::BrokenLexer(_, _)) => {
+                    return Err(LexerError::UnterminatedString(start_pos, value))
+                },
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(Token::StringLiteral(Rc::from(value)))
     }
 }
 
