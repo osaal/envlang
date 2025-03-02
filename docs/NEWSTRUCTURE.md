@@ -17,6 +17,33 @@
     - Output is guaranteed to be "interpretation-time" valid, but can still runtime-error
     - Output goes onto screen as appropriate
 
+## Checklist of rewrite
+
+- [x] IO operations (finished in version 0.5.0)
+    - [x] Implementation
+    - [x] Tests
+    - [x] Documentation
+- [ ] Unicode segmentation (started in version 0.5.1)
+    - [ ] Implementation
+    - [ ] Tests
+    - [ ] Documentation
+- [ ] Lexer
+    - [ ] Implementation
+    - [ ] Tests
+    - [ ] Documentation
+- [ ] Parser
+    - [ ] Implementation
+    - [ ] Tests
+    - [ ] Documentation
+- [ ] Analyzer
+    - [ ] Implementation
+    - [ ] Tests
+    - [ ] Documentation
+- [ ] Executer
+    - [ ] Implementation
+    - [ ] Tests
+    - [ ] Documentation
+
 ## Rewriting process
 
 The rewrite of structure steps 1-3 will happen in one branch. Increment version to a new minor version to indicate API breakage.
