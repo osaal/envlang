@@ -89,13 +89,13 @@ impl Parser {
     /// 
     /// The function returns the text of the input file line which errored
     fn get_line_context(&self, line: usize) -> String {
-        let mut context = String::new();
+        let context = String::new();
         let mut current_line = 0;
         let mut line_start = 0;
         
         for (pos, token) in self.input.iter().enumerate() {
             if let Token::Whitespace(w) = token {
-                if w == "\n" || w == "\r\n" {
+                if w.as_ref() == "\n" || w.as_ref() == "\r\n" {
                     if current_line == line {
                         return self.input[line_start..pos]
                             .iter()
@@ -148,7 +148,7 @@ impl Parser {
                     }
                 }
                 Token::Whitespace(v) => {
-                    match v.as_str() {
+                    match v.as_ref() {
                         "\n" | "\r\n" => self.line_ctr += 1,
                         _ => {}
                     }
@@ -361,7 +361,7 @@ mod tests {
             "2".to_string(),
             "\n".to_string(),
             "3".to_string()
-        ]).tokenize();
+        ]).tokenize().unwrap();
         let mut parser = Parser::new(lexed_input);
         parser.parse_tokens();
         assert_eq!(parser.get_line_number(), 2);
@@ -375,7 +375,7 @@ mod tests {
             "2".to_string(),
             "\r\n".to_string(),
             "3".to_string()
-        ]).tokenize();
+        ]).tokenize().unwrap();
         let mut parser = Parser::new(lexed_input);
         parser.parse_tokens();
         assert_eq!(parser.get_line_number(), 2);
@@ -383,14 +383,14 @@ mod tests {
 
     #[test]
     fn matches_integer() {
-        let lexed_input = Lexer::new(vec!["5".to_string()]).tokenize();
+        let lexed_input = Lexer::new(vec!["5".to_string()]).tokenize().unwrap();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::INT(5)]);
     }
 
     #[test]
     fn matches_float() {
-        let lexed_input = Lexer::new(vec!["3".to_string(), ".".to_string(), "5".to_string()]).tokenize();
+        let lexed_input = Lexer::new(vec!["3".to_string(), ".".to_string(), "5".to_string()]).tokenize().unwrap();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::FLOAT(3.5)]);
     }
@@ -401,7 +401,7 @@ mod tests {
             "123".to_string(), 
             ".".to_string(), 
             "456".to_string()
-        ]).tokenize();
+        ]).tokenize().unwrap();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::FLOAT(123.456)]);
     }
@@ -411,7 +411,7 @@ mod tests {
         let lexed_input = Lexer::new(vec![
             "123".to_string(), 
             ".".to_string()
-        ]).tokenize();
+        ]).tokenize().unwrap();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::FLOAT(123.0)]);
     }
@@ -424,7 +424,7 @@ mod tests {
             "s".to_string(),
             "d".to_string(),
             "\"".to_string()
-        ]).tokenize();
+        ]).tokenize().unwrap();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::STRING("asd".to_string())])
     }
@@ -436,7 +436,7 @@ mod tests {
             "r".to_string(),
             "u".to_string(),
             "e".to_string()
-        ]).tokenize();
+        ]).tokenize().unwrap();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::BOOL(true)]);
     }
@@ -449,7 +449,7 @@ mod tests {
             "l".to_string(),
             "s".to_string(),
             "e".to_string()
-        ]).tokenize();
+        ]).tokenize().unwrap();
         let global_env = Parser::new(lexed_input).parse_tokens();
         assert_eq!(global_env.get_elements(), vec![EnvValue::BOOL(false)]);
     }
@@ -467,7 +467,7 @@ mod tests {
         
         // Approach 1: Combined tokens
         let start = Instant::now();
-        let tokens = Lexer::new(large_input.clone()).tokenize();
+        let tokens = Lexer::new(large_input.clone()).tokenize().unwrap();
         let mut parser = Parser::new(tokens);
         parser.parse_tokens();
         let combined_duration = start.elapsed();
@@ -478,7 +478,7 @@ mod tests {
             .iter()
             .flat_map(|s| s.chars().map(|c| c.to_string()))
             .collect();
-        let tokens = Lexer::new(char_input).tokenize();
+        let tokens = Lexer::new(char_input).tokenize().unwrap();
         let mut parser = Parser::new(tokens);
         parser.parse_tokens();
         let single_char_duration = start.elapsed();
