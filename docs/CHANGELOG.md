@@ -22,7 +22,7 @@ Due to the change in how `Token`s store their data (see below), the `Parser` is 
 #### Minor changes
 
 - Lexer methods have been fixed to accommodate the changes in Token data types. All methods now return `Rc<str>`s in places they used to return `String`s.
-- The method `Lexer.get_input_length` now returns a Result with detailed error information.
+- The methods `Lexer.get_input_length` and `Lexer.peek_n` now both return a Result with detailed error information.
 - `Lexer.tokenize` has seen major internal changes due to the change in Token types, but the external API still stays the same.
 - Added new tests for `LexerError` types
 - Fixed old `Lexer` tests to conform to new Token data types

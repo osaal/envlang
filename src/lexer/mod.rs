@@ -67,18 +67,25 @@ impl Lexer {
         }
     }
 
-    /// Peek at the Nth input `String`
+    /// Peek at the Nth input
     /// 
     /// Used as an immutable and flexible alternative to `iterate`
-    fn peek_n(&self, n: usize) -> Option<Rc<str>> {
-        if self.next > self.input.len() {
-            None
-        } else if self.next > n {
-            None
-        } else if self.input.len() <= n {
-            None
+    /// 
+    /// # Errors
+    /// 
+    /// Returns:
+    /// - `LexerError::BrokenLexer` if the currently-held position is beyond input length
+    /// - `LexerError::IndexOutOfBounds` if the index of the requested element is beyond input length
+    fn peek_n(&self, n: usize) -> Result<Rc<str>, LexerError> {
+        let length: usize = self.input.len();
+        let next: usize = self.next;
+
+        if next > length {
+            Err(LexerError::BrokenLexer(next, length))
+        } else if n >= length {
+            Err(LexerError::IndexOutOfBounds(next, n, length))
         } else {
-            Some(Rc::clone(&self.input[n]))
+            Ok(Rc::clone(&self.input[n]))
         }
     }
 
@@ -95,16 +102,16 @@ impl Lexer {
     /// - `LexerError::SliceOutOfBounds` if the end position is beyond input length
     fn get_input_slice(&self, end: usize) -> Result<&[Rc<str>], LexerError> {
         let length: usize = self.input.len();
-        let pos: usize = self.next;
+        let next: usize = self.next;
 
-        if pos > length {
-            Err(LexerError::BrokenLexer(pos, length))
-        } else if pos > end {
-            Err(LexerError::InvertedSlice(pos, end))
+        if next > length {
+            Err(LexerError::BrokenLexer(next, length))
+        } else if next > end {
+            Err(LexerError::InvertedSlice(next, end))
         } else if length < end {
-            Err(LexerError::SliceOutOfBounds(pos, end, length))
+            Err(LexerError::SliceOutOfBounds(next, end, length))
         } else {
-            Ok(&self.input[pos..end])
+            Ok(&self.input[next..end])
         }
     }
 
@@ -120,7 +127,6 @@ impl Lexer {
         
         // TODO: Error out if `ch` is not matched
         // Note: self.pos will actually always equal the following element when inside the while-let statement!
-        // TODO: Refactor self.pos into self.next or something similar...
         while let Some(unicode_string) = self.iterate() {
             match unicode_string.borrow() {
                 "{" => tokens.push(Token::LeftBrace),
@@ -131,8 +137,10 @@ impl Lexer {
                 "." => tokens.push(Token::FullStop),
                 unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) => {
                     let mut number = unicode_string.to_string();
-                    while let Some(next_unicode_string) = self.peek_n(self.next) {
+                    // We loop until 1) non-digit character, 2) end of input (IndexOutOfBounds error), 3) Invalid lexing state (BrokenLexer error)
+                    while let Ok(next_unicode_string) = self.peek_n(self.next) {
                         if next_unicode_string.chars().all(|c| c.is_ascii_digit()) {
+                            // Safe to unwrap because of the error handled in the while let loop condition
                             number.push_str(&self.iterate().unwrap());
                         } else {
                             break;

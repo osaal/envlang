@@ -20,6 +20,7 @@ pub enum LexerError {
     BrokenLexer(usize, usize),              // (pos, input_len)
     InvertedSlice(usize, usize),            // (start, end)
     SliceOutOfBounds(usize, usize, usize),  // (pos, end, input_len)
+    IndexOutOfBounds(usize, usize, usize)   // (pos, idx, input_len)
 }
 
 impl Error for LexerError {}
@@ -28,17 +29,19 @@ impl fmt::Display for LexerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LexerError::InvalidToken(t, pos) => 
-                write!(f, "Position {}: Invalid token: {}", pos, t),
+                write!(f, "Lexer error at position {}: Invalid token: {}", pos, t),
             LexerError::UnterminatedString(pos, partial) => 
-                write!(f, "Position {}: Unterminated string literal '{}'", pos, partial),
+                write!(f, "Lexer error at position {}: Unterminated string literal '{}'", pos, partial),
             LexerError::EmptyIdentifier(pos) => 
-                write!(f, "Position {}: Empty identifier", pos),
+                write!(f, "Lexer error at position {}: Empty identifier", pos),
             LexerError::BrokenLexer(pos, len) => 
-                write!(f, "Lexer in invalid state: position {} beyond input length {}", pos, len),
+                write!(f, "Lexer error: Lexer in invalid state: position {} beyond input length {}", pos, len),
             LexerError::InvertedSlice(start, end) => 
-                write!(f, "Invalid slice: start position {} greater than end position {}", start, end),
+                write!(f, "Lexer error: Invalid slice: start position {} greater than end position {}", start, end),
             LexerError::SliceOutOfBounds(pos,end, len) => 
-                write!(f, "Slice error: attempted to get position {} to {} from string with length {}", pos, end, len),
+                write!(f, "Lexer error: attempted to get position {} to {} from string with length {}", pos, end, len),
+            LexerError::IndexOutOfBounds(pos, idx, len) =>
+                write!(f, "Lexer error at position {}: attempted to access element at index {} from input with length {}", pos, idx, len)
         }
     }
 }
