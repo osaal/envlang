@@ -8,35 +8,29 @@
 
 use unicode_segmentation::UnicodeSegmentation;
 
-/// Segment a `String` input into Unicode graphemes
+/// Segment a string slice into Unicode graphemes
 /// 
-/// The return vector will contain whitespace and newline characters
+/// # Arguments
+/// * `input` - The string slice to segment
 /// 
-/// The return will not attempt any other character combinations such as Unicode word boundaries
+/// # Returns
+/// A vector of strings representing single extended grapheme clusters
 /// 
-/// Uses the extended Unicode grapheme boundaries
-pub fn segment_graphemes(input: String) -> Vec<String> {
-    let collected: Vec<String> = UnicodeSegmentation::graphemes(
-        input.as_str(),
-        true
-    )
-        .map(|val: &str| val.to_string())
-        .collect();
-    return collected;
-}
-
-/// Segment a `String` input into Unicode words based on grapheme and word boundaries
+/// # Performance
+/// The vector allocates new strings for each grapheme cluster.
 /// 
-/// The return vector will not contain whitespace
+/// # Examples
+/// ```
+/// use envlang::unicodesegmenters::segment_graphemes;
 /// 
-/// Note some quirks with the word segmenter (decimals come through in their entirety, English apostrophes are retained, other symbols are removed)
-pub fn segment_words(input: String) -> Vec<String> {
-    let collected: Vec<String> = UnicodeSegmentation::unicode_words(
-        input.as_str()
-    )
-        .map(|val: &str| val.to_string())
-        .collect::<Vec<String>>();
-    return collected;
+/// let input = "Hello, 世界!";
+/// let segments = segment_graphemes(input);
+/// assert_eq!(segments.len(), 9);
+/// ```
+pub fn segment_graphemes(input: &str) -> Vec<String> {
+    UnicodeSegmentation::graphemes(input, true)
+        .map(String::from)
+        .collect()
 }
 
 // Unit tests for unicodesegmenters.rs
@@ -46,7 +40,7 @@ mod tests {
 
     #[test]
     fn handles_crlf_as_single_grapheme() {
-        let input = "line1\r\nline2\nline3\r\nline4".to_string();
+        let input = "line1\r\nline2\nline3\r\nline4";
         let segments = segment_graphemes(input);
         
         assert!(segments.contains(&"\r\n".to_string()));
@@ -56,5 +50,35 @@ mod tests {
             .filter(|&s| s == "\r\n" || s == "\n")
             .collect();
         assert_eq!(newlines.len(), 3);
+    }
+
+    #[test]
+    fn handles_empty_string() {
+        let input = "";
+        let segments = segment_graphemes(input);
+        assert!(segments.is_empty());
+    }
+
+    #[test]
+    fn handles_unicode_combining_characters() {
+        let input = "e\u{301}";
+        let segments = segment_graphemes(input);
+        assert_eq!(segments.len(), 1);
+        assert_eq!(segments[0], "e\u{301}");
+    }
+
+    #[test]
+    fn handles_emoji_sequences() {
+        let input = "😺";
+        let segments = segment_graphemes(input);
+        assert_eq!(segments.len(), 1);
+        assert_eq!(segments[0], "😺");
+    }
+
+    #[test]
+    fn preserves_input_sequence() {
+        let input = "Hello, 世界!";
+        let segments = segment_graphemes(input);
+        assert_eq!(segments.join(""), input);
     }
 }

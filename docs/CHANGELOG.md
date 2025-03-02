@@ -8,6 +8,12 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.1
+
+-  Added test cases to `io::read_file`
+-  Switched to taking in string slices for `unicodesegmenters::segment_graphemes` to reduce unnecessary copying
+-  Added test cases to `unicodesegmenters::segment_graphemes`
+
 ### Version 0.5.0
 
 -  Added CHANGELOG.md
