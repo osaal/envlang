@@ -4,26 +4,40 @@
    Parsing: `UnicodeSegmentation::Graphemes()`
    See http://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries
 *)
-letter = ? Unicode grapheme ?;
+letter
+   = ? Unicode grapheme ?;
 
 (* ASCII digits excluding zero
 
    Parsing: See digit-zero
 *)
-digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+digit
+   = "1"
+   | "2"
+   | "3"
+   | "4"
+   | "5"
+   | "6"
+   | "7"
+   | "8"
+   | "9";
 
 (* ASCII digits including zero
 
    Parsing: NYI
    Use UnicodeSegmentation::unicode_words()
 *)
-digit-zero = "0" | digit;
+digit-zero
+   = "0"
+   | digit;
 
 (* Valid non-arithmetic symbols
 
    Parsing: NYI
 *)
-generic-symbol = "-" | "_";
+generic-symbol
+   = "-"
+   | "_";
 
 (* Valid arithmetic and set operator symbols
 
@@ -31,7 +45,13 @@ generic-symbol = "-" | "_";
 
    Parsing: NYI
 *)
-arithmetic-operator = "+" | "-" | "*" | "/" | "%" | "^";
+arithmetic-operator
+   = "+"
+   | "-"
+   | "*"
+   | "/"
+   | "^"
+   | "%";
 
 (* Environment terminator
 
@@ -40,7 +60,8 @@ arithmetic-operator = "+" | "-" | "*" | "/" | "%" | "^";
 
    Parsing: NYI
 *)
-terminator = ";";
+terminator
+   = ";";
 
 (* Accessor symbol
 
@@ -50,14 +71,16 @@ terminator = ";";
 
    Parsing: NYI
 *)
-accessor = ".";
+accessor
+   = ".";
 
 (* Decimal point
 
    The decimal point is used to define decimal numbers
    The decimal point is not considered valid outside of floating-point numbers
 *)
-decimal = ".";
+decimal
+   = ".";
 
 (* Assignment symbol
 
@@ -65,7 +88,8 @@ decimal = ".";
 
    Parsing: NYI
 *)
-assignment = "=";
+assignment
+   = "=";
 
 (* Escape symbol
 
@@ -73,7 +97,8 @@ assignment = "=";
 
    Parsing: NYI
 *)
-escape = "\\";
+escape
+   = "\\";
 
 (* String-specific symbols
 
@@ -81,8 +106,11 @@ escape = "\\";
 
    Parsing: NYI
 *)
-double-quote = "\"";
-single-quote = "'";
+double-quote
+   = "\"";
+
+single-quote
+   = "'";
 
 (* Separator symbol
 
@@ -90,7 +118,8 @@ single-quote = "'";
 
    Parsing: NYI
 *)
-separator = ",";
+separator
+   = ",";
 
 (* Wildcard symbol
 
@@ -100,7 +129,8 @@ separator = ",";
 
    Parsing: NYI
 *)
-wildcard = "*";
+wildcard
+   = "*";
 
 (* Environment operators
 
@@ -108,9 +138,15 @@ wildcard = "*";
 
    Parsing: NYI
 *)
-environment-start-operator = "{";
-environment-end-operator = "}";
-environment-operators = environment-start-operator | environment-end-operator;
+environment-start-operator
+   = "{";
+
+environment-end-operator
+   = "}";
+
+environment-operators
+   = environment-start-operator
+   | environment-end-operator;
 
 (* Inheritance operators
 
@@ -118,9 +154,15 @@ environment-operators = environment-start-operator | environment-end-operator;
 
    Parsing: NYI
 *)
-inheritance-argument-start-operator = "(";
-inheritance-argument-end-operator = ")";
-inheritance-argument-operators = inheritance-argument-start-operator | inheritance-argument-end-operator;
+inheritance-argument-start-operator
+   = "(";
+
+inheritance-argument-end-operator
+   = ")";
+
+inheritance-argument-operators
+   = inheritance-argument-start-operator
+   | inheritance-argument-end-operator;
 
 (* Function argument operators
 
@@ -128,9 +170,15 @@ inheritance-argument-operators = inheritance-argument-start-operator | inheritan
 
    Parsing: NYI
 *)
-function-argument-start-operator = "[";
-function-argument-end-operator = "]";
-function-argument-operators  = function-argument-start-operator | function-argument-end-operator;
+function-argument-start-operator
+   = "[";
+
+function-argument-end-operator
+   = "]";
+
+function-argument-operators
+   = function-argument-start-operator
+   | function-argument-end-operator;
 
 (* All symbols
 
@@ -139,8 +187,8 @@ function-argument-operators  = function-argument-start-operator | function-argum
 
    Parsing: NYI
 *)
-symbol =
-   arithmetic-operator
+symbol
+   = arithmetic-operator
    | terminator
    | accessor
    | assignment
@@ -160,11 +208,17 @@ symbol =
 
    Parsing: NYI
 *)
-assignment-keyword = "let";
-inheritance-keyword = "inherit";
-function-keyword = "fun";
-keywords =
-   assignment-keyword
+assignment-keyword
+   = "let";
+
+inheritance-keyword
+   = "inherit";
+
+function-keyword
+   = "fun";
+
+keywords
+   = assignment-keyword
    | inheritance-keyword
    | function-keyword;
 
@@ -173,31 +227,33 @@ keywords =
 
    Parsing: NYI
 *)
-whitespace = "\u{0009}"
-   | "\u{000A}"
-   | "\u{000B}"
-   | "\u{000C}"
-   | "\u{000D}"
-   | "\u{0020}"
-   | "\u{0085}"
-   | "\u{00A0}"
-   | "\u{1680}"
-   | "\u{2000}"
-   | "\u{2001}"
-   | "\u{2002}"
-   | "\u{2003}"
-   | "\u{2004}"
-   | "\u{2005}"
-   | "\u{2006}"
-   | "\u{2007}"
-   | "\u{2008}"
-   | "\u{2009}"
-   | "\u{200A}"
-   | "\u{2028}"
-   | "\u{2029}"
-   | "\u{202F}"
-   | "\u{205F}"
-   | "\u{3000}";
+ws
+   = "{0009}"
+   | "{000A}"
+   | "{000B}"
+   | "{000C}"
+   | "{000D}"
+   | "{0020}"
+   | "{0085}"
+   | "{00A0}"
+   | "{1680}"
+   | "{2000}"
+   | "{2001}"
+   | "{2002}"
+   | "{2003}"
+   | "{2004}"
+   | "{2005}"
+   | "{2006}"
+   | "{2007}"
+   | "{2008}"
+   | "{2009}"
+   | "{200A}"
+   | "{2028}"
+   | "{2029}"
+   | "{202F}"
+   | "{205F}"
+   | "{3000}";
+
 (* Characters above in order: 
     \u{0009} = Character tabulation
     \u{000A} = Line feed
@@ -234,7 +290,9 @@ whitespace = "\u{0009}"
 
    Parsing: NYI
 *)
-character = letter | digit;
+character
+   = letter
+   | digit;
 
 (* Character arrays
 
@@ -248,7 +306,8 @@ character = letter | digit;
 
    Parsing: NYI
 *)
-character-array = character , { character };
+character-array
+   = character , { character };
 
 (*** DATA TYPES ***)
 (* Integers
@@ -261,7 +320,8 @@ character-array = character , { character };
 
    Parsing: NYI
 *)
-integer = digit , { digit };
+integer
+   = digit , { digit };
 
 (* Floating-point numbers
 
@@ -269,14 +329,16 @@ integer = digit , { digit };
             3.14
             100.0
             005.0
+            .05
 
-   Floating-point numbers are defined by one or more leading digits, a decimal point ".", and one or more trailing digits
+   Floating-point numbers are defined by zero or more leading digits, a decimal point ".", and one or more trailing digits
    Any of the digits may be zero
    Leading zeros before the decimal point as well as single zeros after the decimal point are ignored during parsing
 
    Parsing: NYI
 *)
-float = digit-zero , { digit-zero } , "." , digit-zero , { digit-zero };
+float
+   = { digit-zero } , "." , digit-zero , { digit-zero };
 
 (* Strings
 
@@ -287,14 +349,21 @@ float = digit-zero , { digit-zero } , "." , digit-zero , { digit-zero };
 
    Parsing: NYI
 *)
-double-quote-string = 
-   double-quote ,
-   { character | integer | whitespace | generic-symbol | single-quote | ( escape, symbol ) } ,
-   double-quote;
-single-quote-string =
-   single-quote ,
-   { character | integer | whitespace | generic-symbol | double-quote | ( escape, symbol ) } ,
-   single-quote;
+double-quote-string
+   = double-quote , { character
+   | integer
+   | ws
+   | generic-symbol
+   | single-quote
+   | ( escape , symbol ) } , double-quote;
+
+single-quote-string
+   = single-quote , { character
+   | integer
+   | ws
+   | generic-symbol
+   | double-quote
+   | ( escape , symbol ) } , single-quote;
 
 (* Boolean values
 
@@ -306,7 +375,9 @@ single-quote-string =
 
    Parsing: NYI
 *)
-boolean = ("t", "r", "u", "e") | ("f", "a", "l", "s", "e");
+boolean
+   = ( "t" , "r" , "u" , "e" )
+   | ( "f" , "a" , "l" , "s" , "e" );
 
 (* Primitive data types
 
@@ -314,7 +385,12 @@ boolean = ("t", "r", "u", "e") | ("f", "a", "l", "s", "e");
 
    Parsing: NYI
 *)
-data-type = integer | float | double-quote-string | single-quote-string | boolean;
+data-type
+   = integer
+   | float
+   | double-quote-string
+   | single-quote-string
+   | boolean;
 
 (*** IDENTIFIERS ***)
 (* Environment identifiers
@@ -325,125 +401,171 @@ data-type = integer | float | double-quote-string | single-quote-string | boolea
 
    Parsing: NYI
 *)
-identifier = letter , { character | generic-symbol };
+identifier
+   = letter , { character
+   | generic-symbol };
 
-(*** INHERITANCE ***)
+(* Accessed identifier
+
+   Example: a.b.c
+            a.b
+            a        // Self-accession
+
+   Accessed identifiers are used to access environment members
+   Accessed identifiers are formed by an identifier followed by zero or more accessors
+
+   Parsing: NYI
+*)
+accessed-identifier
+   = identifier , { accessor , identifier };
+
+(*** ARGUMENT LISTS ***)
 (* Inheritance arguments
 
    Example: (a, b, c) or (*\)
    Note: Example wildcard closing parenthesis escaped for file formatting
 
-   Inheritance arguments tells the environment which objects to inherit from the parent
    Inheritance arguments are surrounded by parentheses
-   Objects may be inherited as a comma-separated list or a wildcard '*'
-   Whitespace is ignored everywhere
-   Inheritance arguments are not considered valid outside of inheritance contexts
+   Arguments may be either a wildcard, or one or more identifiers separated by commas
+   All whitespace is ignored
+   Hanging commas are not allowed
+
+   Style preference: (a, b, c), (*\)
 
    Parsing: NYI
 *)
-inheritance-argument =
-   inheritance-argument-start-operator ,
-   { whitespace } ,
-   identifier
-   | wildcard,
-   {
-      { whitespace } ,
-      separator ,
-      { whitespace } ,
-      identifier
-   } ,
-   { whitespace } ,
-   inheritance-argument-end-operator;
+inheritance-argument
+   = inheritance-argument-start-operator , { ws } ,
+   ( wildcard
+   | ( identifier , { { ws } , separator, { ws }, identifier } ) ) ,
+   { ws } , inheritance-argument-end-operator;
 
-(* Inherited assignment keyword
+(* Function arguments 
+   
+   Example: []
+            [a]
+            [a, b, c]
+            [a         ,    b, c   ]
+            [       ]
+
+   Function arguments are surrounded by square brackets
+   Function arguments may contain zero or more identifiers separated by commas
+   All whitespace is ignored
+   Hanging commas are not allowed
+
+   Style preference: [a, b, c], []
+
+   Parsing: NYI
+*)
+function-argument
+   = function-argument-start-operator ,
+   { ws } ,
+   [ identifier , { { ws } , separator , { ws } , identifier } ] ,
+   function-argument-end-operator;
+
+(*** ASSIGNMENTS ***)
+(* Non-function assignments
+   Example: let a = { let x = 3; }; // Environment assignment
+            let b = 5;              // Data type assignment
+            let c = b;              // Identifier assignment
+            let d = e = c;          // Chained identifier assignment
+            let f = a.x;            // Accessor assignment
+            let g = h = a.x;        // Chained accessor assignment
+
+   Note, that chained accessor assignments can only include accessors as the last assignment.
+   The following are thus not allowed:
+   - let a = b.c = d;
+   - let a.b = c = d;
+   
+   Style preferences:
+   - Add one space character between the assignment keyword and the identifier
+   - Add one space character between the identifier and the assignment operator
+   - Add one space character between the assignment operator and the assignment value
+   - Add no spaces between the value and the terminator
+
+   TODO: Write accessor assignment logic!
+*)
+non-function-assignment
+   = assignment-keyword , { ws } , 
+   identifier , { ws } ,
+   assignment , { ws } ,
+   ( explicit-environment , { ws } , terminator 
+   | ( data-type , { ws } , terminator )
+   | ( identifier ,
+         { { ws } , assignment , { ws } , identifier } ,
+         [ { ws } , assignment , { ws } , accessed-identifier ] ,
+         { ws } , terminator
+      )
+   );
+
+(* Inherited assignments
 
    Example: let a inherit (b, c) = { ... };
 
-   Precludes an assignment
    The keyword 'inherit' may be surrounded by one valid whitespace character, but not more than one
    The keyword must be followed by the inheritance arguments
    The keyword not considered valid outside of assignment contexts
 
+   Inheritance is not allowed in chains. The following is thus not allowed:
+   - let a inherit (b, c) = x inherit (d, e) = ... ;
+   The main reason is that chained inheritance would result in opaque and hard-to-read code.
+
    Parsing: NYI
 *)
-inherited-assignment =
-   assignment-keyword ,
-   { whitespace } ,
-   identifier ,
-   { whitespace } ,
-   inheritance-keyword ,
-   { whitespace } ,
+inherited-assignment
+   = assignment-keyword , { ws } ,
+   identifier , { ws } ,
+   inheritance-keyword , { ws } ,
    inheritance-argument;
 
-(*** ASSIGNMENTS ***)
-(*TODO: Rewrite function-assignment completely!*)
-function-assignment = 
-   function-keyword ,
-   function-argument-start-operator ,
-   { whitespace } ,
-   identifier ,
-   { whitespace } ,
-   "," ,
-   {
-      { whitespace } ,
-      identifier ,
-      { whitespace } ,
-      ","
-   } ,
-   { whitespace };
+(* Function assignments
 
-(* Assignment
+   Example: let fun b[c, d] = { ... };
 
-   Example: let a = { ... };
-            let b = 5;
-            let c = a;
+   Precludes an assignment
+   The keyword 'fun' may be surrounded by one valid whitespace character, but not more than one
+   The keyword must be followed by an identifier
+   The identifier must be followed by a function argument list
+   The function argument list is surrounded by square brackets and may contain zero or more identifiers separated by commas
+   The function argument list may be surrounded by optional whitespace
+   The function argument list is followed by an assignment
+   The assignment is followed by an explicit environment
 
-   An assignment is precluded by the assignment keyword and a valid identifier
-   Assignment is done with the assignment operator "="
-   The assignment operator may be surrounded by zero or more valid whitespace characters
-   Assignments contain either explicit or implicit environments (these can be nested, see definitions above)
-   An assignment is terminated by a terminator if it ends with an implicit environment
-   An assignment is optionally terminated by a terminator if it ends with an explicit environment
+   Functions may not inherit, since that would break against the purity of functions
+   Functions may, however, be inherited, since their declaration is static and thus cannot cause namespace collisions:
 
-   Recommendation: Always terminate assignments with a terminator
+   let fun a[] = { ... };
+   let b inherit (a) = { ... };
 
    Parsing: NYI
 *)
-assignment =
-   assignment-keyword
-   | inherited-assignment ,
-   { whitespace } ,
-   identifier ,
-   { whitespace } ,
-   assignment ,
-   { whitespace },
-   explicit-environment | implicit-environment;
+function-assignment
+   = assignment-keyword , { ws } ,
+   function-keyword , { ws } ,
+   identifier , { ws } ,
+   function-argument, { ws } ,
+   assignment , { ws } ,
+   explicit-environment;
 
 (*** ENVIRONMENTS ***)
-(* Environments
+(* Explicit environments
 
-   Environments come in two forms: explicit and implicit
+   Example: { a = 5; b = 6; c = 7; }
+            { a = { b = 5; c = 6; d = 7; }; }
+            { a = { b = 5; c = 6; d = 7; }; e = 8; }
+            { 5; }
+
    Explicit environments are surrounded by braces
-   Implicit environments occur on assignments without braces
-   Environments can contain digits, letters, symbols, whitespace, operators and other environments
-   Implicit environments are terminated by a terminator, explicit ones do not require a terminator
-
-   Notes:
-   The distinction between implicit and explicit environments is mostly backend, as both are treated the same for scope-related purposes
-   Implicit environments are not a complete subset of explicit environments, as the former requires a terminator while the latter does not
-   Implicit environments are only used in assignment, and are not valid syntax anywhere else
+   Explicit environments may contain zero or more of the following: inherited assignments, function assignments, non-function assignments, or data types
+   If an explicit environment is empty, it may contain only optional whitespace
+   If the environment contains a data-type, it must be followed by a terminator
+   Explicit environments cannot contain more than one naked data-type
 
    Parsing: NYI
 *)
-explicit-environment =
-   environment-start-operator ,
-   { whitespace } ,
-   { assignment | data-type } ,
-   environment-end-operator ,
-   [ terminator ];
-
-implicit-environment =
-   data-type ,
-   { whitespace } ,
-   terminator;
-
+explicit-environment
+   = environment-start-operator ,
+   { { ws } , ( inherited-assignment | function-assignment | non-function-assignment ) } 
+   | [ data-type , { ws }, terminator ],
+   { ws } ,
+   environment-end-operator;

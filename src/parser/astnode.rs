@@ -49,7 +49,23 @@ pub enum AstNode {
 }
 
 impl AstNode {
+    pub fn is_environment(&self) -> bool {
+        matches!(self, AstNode::Environment { .. })
+    }
 
+    pub fn as_identifier(&self) -> Option<&str> {
+        match self {
+            AstNode::Identifier(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    pub fn get_bindings(&self) -> Option<Vec<Rc<AstNode>>> {
+        match self {
+            AstNode::Environment { bindings, .. } => Some(bindings.to_vec()),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
