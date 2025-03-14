@@ -26,7 +26,7 @@ mod error;
 pub use token::Token;
 pub use error::LexerError;
 
-use crate::symbols::{Keywords, Booleans};
+use crate::symbols::{Keywords, Booleans, ArithmeticOperators, OtherOperators, Operators};
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -143,8 +143,8 @@ impl Lexer {
                     tokens.push(self.tokenize_string("\"", pos)?),
                 "'" =>
                     tokens.push(self.tokenize_string("'", pos)?),
-                "+" | "-" | "*" | "/" | "%" | "^" =>
-                    tokens.push(Token::Operator(unicode_string)),
+                "+" | "-" | "*" | "/" | "%" | "^" | "=" =>
+                    tokens.push(self.tokenize_operator(&unicode_string, pos)?),
                 "." =>
                     tokens.push(Token::FullStop),
                 unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) =>
@@ -296,11 +296,28 @@ impl Lexer {
 
         Ok(Token::StringLiteral(Rc::from(value)))
     }
+
+    fn tokenize_operator(&mut self, unicode_string: &str, pos: usize) -> Result<Token, LexerError> {
+        let operator = match unicode_string {
+            "+" => Ok(Operators::Arithmetic(ArithmeticOperators::ADD)),
+            "-" => Ok(Operators::Arithmetic(ArithmeticOperators::SUBTRACT)),
+            "*" => Ok(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
+            "/" => Ok(Operators::Arithmetic(ArithmeticOperators::DIVIDE)),
+            "%" => Ok(Operators::Arithmetic(ArithmeticOperators::MODULUS)),
+            "^" => Ok(Operators::Arithmetic(ArithmeticOperators::EXPONENTIATION)),
+            "=" => Ok(Operators::Other(OtherOperators::ASSIGNMENT)),
+            _ => Err(LexerError::UnrecognizedInput(pos, unicode_string.to_string()))?,
+        };
+
+        return Ok(Token::Operator(operator?));
+    }
 }
 
 // Unit tests for lexer.rs
 #[cfg(test)]
 mod tests {
+    use crate::symbols::ArithmeticOperators;
+
     use super::*;
 
     // Error condition tests
@@ -406,42 +423,42 @@ mod tests {
     fn matches_add_operator() {
         let input = vec!["+".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::Operator(Rc::from("+")), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)), Token::EOF]);
     }
 
     #[test]
     fn matches_subtract_operator() {
         let input = vec!["-".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::Operator(Rc::from("-")), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Operators::Arithmetic(ArithmeticOperators::SUBTRACT)), Token::EOF]);
     }
 
     #[test]
     fn matches_multiply_operator() {
         let input = vec!["*".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::Operator(Rc::from("*")), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)), Token::EOF]);
     }
 
     #[test]
     fn matches_divide_operator() {
         let input = vec!["/".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::Operator(Rc::from("/")), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Operators::Arithmetic(ArithmeticOperators::DIVIDE)), Token::EOF]);
     }
 
     #[test]
     fn matches_modulus_operator() {
         let input = vec!["%".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::Operator(Rc::from("%")), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Operators::Arithmetic(ArithmeticOperators::MODULUS)), Token::EOF]);
     }
 
     #[test]
     fn matches_exponentiation_operator() {
         let input = vec!["^".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::Operator(Rc::from("^")), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Operators::Arithmetic(ArithmeticOperators::EXPONENTIATION)), Token::EOF]);
     }
 
     #[test]
@@ -449,6 +466,13 @@ mod tests {
         let input = vec![".".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
         assert_eq!(tokens, vec![Token::FullStop, Token::EOF]);
+    }
+
+    #[test]
+    fn matches_assignment_operator() {
+        let input = vec!["=".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)), Token::EOF]);
     }
 
     #[test]

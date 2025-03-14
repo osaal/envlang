@@ -1,4 +1,4 @@
-use crate::symbols::{Booleans, Keywords};
+use crate::symbols::{Booleans, Keywords, Operators};
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -11,7 +11,7 @@ pub enum Token {
     Boolean(Booleans),
     Keyword(Keywords),
     Whitespace(Rc<str>),
-    Operator(Rc<str>),
+    Operator(Operators),
     FullStop,
     EOF,
 }

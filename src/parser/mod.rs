@@ -3,8 +3,10 @@ mod error;
 
 use crate::lexer::Token;
 use crate::symbols::ArithmeticOperators;
+use crate::symbols::OtherOperators;
 use crate::symbols::Keywords;
 use crate::symbols::Booleans;
+use crate::symbols::Operators;
 use crate::environment::EnvScope;
 use std::rc::Rc;
 use std::borrow::Borrow;
@@ -73,12 +75,18 @@ impl Parser {
     fn parse_program(&mut self) -> Result<AstNode, ParserError> {
         let mut bindings = Vec::new();
 
+        // Thoughts about implementing matching Operator:
+        // - It would be better to match against crate::symbol::Operator
+        // - However, operators can be either ArithmeticOperators other reserved symbols
+        // - There are now two operator enums: ArithmeticOperators and OtherOperators
+        // - These now need to be used in the lexer and parser instead of string literals
+
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::LeftBrace => todo!(),
                 Token::RightBrace => todo!(),
                 Token::Identifier(id) => todo!(),
-                Token::Number(_) | Token::FullStop => 
+                Token::Number(_) | Token::FullStop => // FIXME: This will not work with FullStop as the accessor operation!
                     bindings.push(self.parse_number(pos, &token)?.into()),
                 Token::StringLiteral(string) =>
                     bindings.push(self.parse_string(&string)?.into()),
@@ -91,7 +99,13 @@ impl Parser {
                 Token::Keyword(Keywords::FUN) => todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
-                Token::Operator(op) => todo!(), // I don't like using an str here...
+                Token::Operator(op) => {
+                    if let Some(prev_operand) = bindings.pop() {
+                        bindings.push(self.parse_operator(op, &prev_operand)?.into());
+                    } else {
+                        return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
+                    }
+                },
                 Token::EOF => (),
                 _ => todo!("Error"),
             }
@@ -125,7 +139,7 @@ impl Parser {
         }
     }
 
-    fn parse_operator(&mut self, op: &Rc<str>, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
+    fn parse_operator(&mut self, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
         // Try to parse the next token using self.parse_number()
         // - catch the error! If it errors, it means that whatever came out was not a number-like string
         // If Err(), convert to ParserError::NotANumber (?)

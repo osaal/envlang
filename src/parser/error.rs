@@ -8,14 +8,17 @@ use std::fmt;
 /// Errors always contain at least:
 /// - The current parser position
 /// - The current line number (calculated by the parser)
+/// - The value that caused the error
 /// 
 /// Errors may optionally include information about:
 /// - Expected and actual values
 /// - Attempted operation parameters
 #[derive(Debug, PartialEq)]
 pub enum ParserError {
-    NotANumber(usize, usize, String),          // (pos)
-    MalformedNumber(usize, usize, String),     // (pos)
+    NotANumber(usize, usize, String),          // (pos, line, value)
+    MalformedNumber(usize, usize, String),     // (pos, line, value)
+    InvalidOperation(usize, usize, String),    // (pos, line, value)
+    BinaryOpWithNoLHS(usize, usize),           // (pos, line)
 }
 
 impl Error for ParserError {}
@@ -27,9 +30,13 @@ impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ParserError::NotANumber(pos, line, valuestr) => 
-                write!(f, "Parser error at source line {}, token position {}: Value {} is not a number", line, pos, valuestr),
+                write!(f, "Parser error at source line {}, token position {}: Value '{}' is not a number", line, pos, valuestr),
             ParserError::MalformedNumber(pos, line, valuestr) => 
-                write!(f, "Parser error at source line {}, token position {}: Value {} is a malformed number", line, pos, valuestr),
+                write!(f, "Parser error at source line {}, token position {}: Value '{}' is a malformed number", line, pos, valuestr),
+            ParserError::InvalidOperation(pos, line, valuestr) => 
+                write!(f, "Parser error at source line {}, token position {}: Invalid operation '{}'", line, pos, valuestr),
+            ParserError::BinaryOpWithNoLHS(pos, line) =>
+                write!(f, "Parser error at source line {}, token position {}: Binary operation with no left-hand side", line, pos),
         }
     }
 }
