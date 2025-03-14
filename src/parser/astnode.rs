@@ -104,5 +104,4 @@ impl AstNode {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 }

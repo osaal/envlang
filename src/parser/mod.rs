@@ -2,14 +2,11 @@ mod astnode;
 mod error;
 
 use crate::lexer::Token;
-use crate::symbols::ArithmeticOperators;
-use crate::symbols::OtherOperators;
-use crate::symbols::Keywords;
-use crate::symbols::Booleans;
-use crate::symbols::Operators;
+use crate::symbols::{Keywords, Booleans, Operators};
 use crate::environment::EnvScope;
 use std::rc::Rc;
 use std::borrow::Borrow;
+
 pub use astnode::AstNode;
 pub use error::ParserError;
 
@@ -85,7 +82,7 @@ impl Parser {
             match token.borrow() {
                 Token::LeftBrace => todo!(),
                 Token::RightBrace => todo!(),
-                Token::Identifier(id) => todo!(),
+                Token::Identifier(_) => todo!(),
                 Token::FullStop => {
                     if let Some(prev) = self.bindings.pop() {
                         // Check type of AstNode
@@ -133,7 +130,6 @@ impl Parser {
                     }
                 },
                 Token::EOF => (),
-                _ => todo!("Error"),
             }
         }
 
@@ -176,8 +172,8 @@ impl Parser {
 
         // TEMP: Remove once build is secured
         Ok(AstNode::BinaryOp {
-            left: AstNode::Integer(5).into(),
-            operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+            left: prev.clone(),
+            operator: op.clone(),
             right: AstNode::Integer(5).into(),
         })
     }
