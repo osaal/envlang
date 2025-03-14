@@ -22,29 +22,54 @@ impl Parser {
         Self {
             tokens,
             current: 0,
-            line: 0     // Used for informative errors
+            line: 1     // Used for informative errors
         }
     }
 
+    /// Get the current token in queue
     fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.current)
     }
 
+    /// Increment the current token index by 1
+    fn next(&mut self) {
+        self.current += 1;
+    }
+
+    /// Get current token and advance the index by 1
+    /// 
+    /// Returns the current token and its position in the token vector
+    /// 
+    /// If the current token is the last token in the vector, returns None
     fn advance(&mut self) -> Option<(usize, Rc<Token>)> {
         if self.current < self.tokens.len() {
             let pos = self.current;
-            let ch = Rc::new(self.tokens[self.current].clone());
-            self.current += 1;
+            let ch = Rc::new(self.peek().unwrap().clone()); // Safe to unwrap because we checked the length
+            self.next();
             return Some((pos, ch));
         } else {
             return None;
         }
     }
 
+    /// Parse the tokens into an AST
+    /// 
+    /// Returns an AST node representing the program
+    /// 
+    /// Simple wrapper for the `parse_program` internal method
+    /// 
+    /// # Errors
+    /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
     pub fn parse(&mut self) -> Result<AstNode, ParserError> {
         self.parse_program()
     }
 
+    /// Parse the program
+    /// 
+    /// Returns an AST node containing an Environment representing the program
+    /// 
+    /// # Errors
+    /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
     fn parse_program(&mut self) -> Result<AstNode, ParserError> {
         let mut bindings = Vec::new();
 
@@ -53,8 +78,8 @@ impl Parser {
                 Token::LeftBrace => todo!(),
                 Token::RightBrace => todo!(),
                 Token::Identifier(id) => todo!(),
-                Token::Number(num) => 
-                    bindings.push(self.parse_number(token.as_ref())?.into()),
+                Token::Number(_) | Token::FullStop => 
+                    bindings.push(self.parse_number(pos, &token)?.into()),
                 Token::StringLiteral(string) =>
                     bindings.push(self.parse_string(&string)?.into()),
                 Token::Boolean(Booleans::TRUE) =>
@@ -67,8 +92,7 @@ impl Parser {
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
                 Token::Operator(op) => todo!(), // I don't like using an str here...
-                Token::FullStop => todo!(),
-                Token::EOF => todo!(),
+                Token::EOF => (),
                 _ => todo!("Error"),
             }
         }
@@ -81,10 +105,18 @@ impl Parser {
         })
     }
 
+    /// Parse a string literal
+    /// 
+    /// Returns an AST node containing the string literal
     fn parse_string(&mut self, string: &Rc<str>) -> Result<AstNode, ParserError> {
         Ok(AstNode::String(string.clone()))
     }
 
+    /// Parse a whitespace token
+    /// 
+    /// Increments the line counter if the whitespace is a new-line character
+    /// 
+    /// In other cases, does nothing
     fn parse_whitespace(&mut self, ws: &Rc<str>) {
         // Increase line counter if whitespace is new-line char
         match ws.borrow() {
@@ -108,25 +140,112 @@ impl Parser {
         })
     }
 
-    fn parse_number(&mut self, num: &Token) -> Result<AstNode, ParserError> {
-        // Check that num is Token::Number or Token::FullStop
-        // If no, return Err(ParserError::NotANumber)
-        // If yes, add num to a temporary vector
+    fn parse_number(&mut self, start_pos: usize, start_token: &Token) -> Result<AstNode, ParserError> {
+        let mut numstr = String::new();
 
-        // Continue along self.tokens and add all Token::Number or Token::FullStop you meet
-        // Once something else is met, finish building the vector
+        // Valid numbers start with a number or a full stop (if float)
+        match start_token {
+            Token::Number(num) => numstr.push_str(num),
+            Token::FullStop => numstr.push_str("0."),
+            _ => return Err(ParserError::NotANumber(start_pos, self.line, numstr)),
+        }
+        
+        // Numbers are stored as singular tokens from the lexer, so they need to be concatenated first
+        while let Some(token) = self.peek() {
+            match token {
+                Token::Number(num) => {
+                    numstr.push_str(num);
+                    self.next();
+                },
+                Token::FullStop => {
+                    // A float can only have one decimal point
+                    if numstr.contains(".") {
+                        return Err(ParserError::MalformedNumber(self.current, self.line, numstr));
+                    }
+
+                    numstr.push_str(".");
+                    self.next();
+                },
+                _ => break,
+            }
+        }
         
         // Try to cast the vector to an isize
-        // If possible, return AstNode::Integer(cast_vector)
-        // If not, try to cast to an f64
-        // If possible, return AstNode::Float(cast_vector)
-        // If not, return Err(ParserError::NotANumber)
-
-        Ok(AstNode::Integer(5))
+        // If possible, return AstNode::Integer(cast_vector); If not, try to cast to an f64
+        // If possible, return AstNode::Float(cast_vector); If not, return Err(ParserError::NotANumber)
+        numstr.parse::<isize>()
+            .map(|num| AstNode::Integer(num))
+            .or_else(|_| numstr.parse::<f64>().map(|num| AstNode::Float(num)))
+            .map_err(|_| ParserError::NotANumber(self.current, self.line, numstr))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn int() {
+        let tokens = vec![
+            Token::Number("5".into()),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Integer(5))], parent: None, scope: EnvScope::LOCAL });
+    }
+
+    #[test]
+    fn float() {
+        let tokens = vec![
+            Token::Number("5".into()),
+            Token::FullStop,
+            Token::Number("0".into()),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(5.0))], parent: None, scope: EnvScope::LOCAL });
+    }
+
+    #[test]
+    fn float_with_leading_decimal() {
+        let tokens = vec![
+            Token::FullStop,
+            Token::Number("5".into()),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(0.5))], parent: None, scope: EnvScope::LOCAL });
+    }
+
+    // TODO: Fix this test once the error handling is fixed to be more informative
+    #[test]
+    fn malformed_number() {
+        let tokens = vec![
+            Token::Number("5".into()),
+            Token::FullStop,
+            Token::Number("0".into()),
+            Token::FullStop,
+            Token::Number("0".into()),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse();
+        assert!(ast.is_err());
+        assert_eq!(ast.unwrap_err(), ParserError::MalformedNumber(3, 1, "5.0".into()));
+    }
+
+    #[test]
+    fn not_a_number() {
+        let tokens = vec![
+            Token::Number("abc".into()),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse();
+        assert!(ast.is_err());
+        assert_eq!(ast.unwrap_err(), ParserError::NotANumber(1, 1, "abc".into()));
+    }
 }
