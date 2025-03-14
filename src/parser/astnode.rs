@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::environment::EnvScope;
+use crate::{environment::EnvScope, symbols::ArithmeticOperators};
 
 #[derive(Debug, PartialEq)]
 pub enum AstNode {
@@ -21,7 +21,7 @@ pub enum AstNode {
     // Expressions
     BinaryOp {
         left: Rc<AstNode>,
-        operator: String,
+        operator: ArithmeticOperators,
         right: Rc<AstNode>,
     },
 

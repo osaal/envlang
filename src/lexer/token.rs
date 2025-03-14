@@ -1,7 +1,7 @@
 use crate::symbols::{Booleans, Keywords};
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
     LeftBrace,
     RightBrace,

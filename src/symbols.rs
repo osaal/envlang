@@ -15,10 +15,10 @@
 /// -  `MODULUS`: Remainder operator `%`
 /// -  `EXPONENTIATION`: Exponentiation operator `^`
 /// 
-/// The enum derives the traits `Debug` and `Clone`.
+/// The enum derives the traits `Debug`, `Clone`, and `PartialEq`.
 /// 
 /// [data types]: ../environment/enum.EnvValue.html
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ArithmeticOperators {
     ADD,            // +
     SUBTRACT,       // -
