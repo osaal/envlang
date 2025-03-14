@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{environment::EnvScope, symbols::ArithmeticOperators};
+use crate::{environment::EnvScope, symbols::Operators};
 
 #[derive(Debug, PartialEq)]
 pub enum AstNode {
@@ -21,7 +21,7 @@ pub enum AstNode {
     // Expressions
     BinaryOp {
         left: Rc<AstNode>,
-        operator: ArithmeticOperators,
+        operator: Operators,
         right: Rc<AstNode>,
     },
 
@@ -46,6 +46,40 @@ pub enum AstNode {
         callee: Box<AstNode>,
         arguments: Vec<Rc<AstNode>>,
     },
+}
+
+impl ToString for AstNode {
+    fn to_string(&self) -> String {
+        match self {
+            AstNode::Integer(num)
+                => num.to_string(),
+            AstNode::Float(num)
+                => num.to_string(),
+            AstNode::Boolean(b)
+                => b.to_string(),
+            AstNode::String(s)
+                => s.to_string(),
+            AstNode::Identifier(name)
+                => name.to_string(),
+            AstNode::Environment { name, .. } => {
+                if let Some(name) = name {
+                    format!("Environment '{}'", name)
+                } else {
+                    "Anonymous environment".to_string()
+                }
+            },
+            AstNode::BinaryOp { left, operator, right }
+                => format!("{} {} {}", left.to_string(), operator.to_string(), right.to_string()),
+            AstNode::Let { name, value }
+                => format!("Let {} = {}", name, value.to_string()),
+            AstNode::Inherit { source, names }
+                => format!("Inherit elements '{}' from '{}'", source.to_string(), names.join(", ")),
+            AstNode::Function { params, .. }
+                => format!("Function with params [{}]", params.join(", ")),
+            AstNode::FunctionCall { callee, arguments }
+                => format!("Function call by {} with arguments [{}]", callee.to_string(), arguments.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(", ")),
+        }
+    }
 }
 
 impl AstNode {

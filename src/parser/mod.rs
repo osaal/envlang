@@ -15,6 +15,7 @@ pub use error::ParserError;
 
 pub struct Parser {
     tokens: Vec<Token>,
+    bindings: Vec<Rc<AstNode>>,
     current: usize,
     line: usize,
 }
@@ -23,6 +24,7 @@ impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens,
+            bindings: Vec::new(),
             current: 0,
             line: 1     // Used for informative errors
         }
@@ -73,8 +75,6 @@ impl Parser {
     /// # Errors
     /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
     fn parse_program(&mut self) -> Result<AstNode, ParserError> {
-        let mut bindings = Vec::new();
-
         // Thoughts about implementing matching Operator:
         // - It would be better to match against crate::symbol::Operator
         // - However, operators can be either ArithmeticOperators other reserved symbols
@@ -86,22 +86,48 @@ impl Parser {
                 Token::LeftBrace => todo!(),
                 Token::RightBrace => todo!(),
                 Token::Identifier(id) => todo!(),
-                Token::Number(_) | Token::FullStop => // FIXME: This will not work with FullStop as the accessor operation!
-                    bindings.push(self.parse_number(pos, &token)?.into()),
-                Token::StringLiteral(string) =>
-                    bindings.push(self.parse_string(&string)?.into()),
+                Token::FullStop => {
+                    if let Some(prev) = self.bindings.pop() {
+                        // Check type of AstNode
+                        // If it is an identifier, FullStop represents the accessor operation
+                        match prev.borrow() {
+                            AstNode::Integer(_) | AstNode::Float(_) => {
+                                // We're building a number!
+                                // However, this should have been caught by Token::Number in a previous step...
+                            },
+                            AstNode::Identifier(_) | AstNode::Environment { .. } => {
+                                // We're accessing an identifier or environment!
+                                // This will not have been caught by any match arm or sub-method yet
+                            },
+                            _ => {
+                                // Syntax error, a full stop does not belong here!
+                            },
+                        }
+                    } else {
+                        // Syntax error, a full stop does not belong at the start of the source code!
+                    }
+                },
+                Token::Number(_) => { // FullStop is caught before and sent to number parsing if syntactically correct
+                    let temp = self.parse_number(pos, &token)?.into();
+                    self.bindings.push(temp);
+                },
+                Token::StringLiteral(string) => {
+                    let temp = self.parse_string(&string)?.into();
+                    self.bindings.push(temp);
+                },
                 Token::Boolean(Booleans::TRUE) =>
-                    bindings.push(AstNode::Boolean(true).into()),
+                    self.bindings.push(AstNode::Boolean(true).into()),
                 Token::Boolean(Booleans::FALSE) => 
-                    bindings.push(AstNode::Boolean(false).into()),
+                    self.bindings.push(AstNode::Boolean(false).into()),
                 Token::Keyword(Keywords::LET) => todo!(),
                 Token::Keyword(Keywords::INHERIT) => todo!(),
                 Token::Keyword(Keywords::FUN) => todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
                 Token::Operator(op) => {
-                    if let Some(prev_operand) = bindings.pop() {
-                        bindings.push(self.parse_operator(op, &prev_operand)?.into());
+                    if let Some(prev_operand) = self.bindings.pop() {
+                        let temp = self.parse_operator(op, &prev_operand)?.into();
+                        self.bindings.push(temp);
                     } else {
                         return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
                     }
@@ -113,7 +139,7 @@ impl Parser {
 
         Ok(AstNode::Environment {
             name: None,
-            bindings,
+            bindings: self.bindings.clone(),
             parent: None,
             scope: EnvScope::LOCAL
         })
@@ -140,21 +166,29 @@ impl Parser {
     }
 
     fn parse_operator(&mut self, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
-        // Try to parse the next token using self.parse_number()
-        // - catch the error! If it errors, it means that whatever came out was not a number-like string
-        // If Err(), convert to ParserError::NotANumber (?)
-        // If Ok(), check that the element is compatible with prev
-        // - If yes, return Ok(AstNode::BinaryOp)
-        // - If no, return Err(ParserError::InvalidOperation)
-        
+        // Here are (some) valid operations that need to be covered:
+        // 1. String + {string, identifier representing string} (concatenation)
+        // 2. Integer +-*^% {integer, float} (convert LHS to float if RHS is float)
+        // 3. Integer / {integer, float} (convert LHS to float in all cases)
+        // 4. Float +-*^%/ {integer, float} (no conversion needed)
+        // 5. Identifier = {expression, left brace, identifier} (parse RHS and add to identifier)
+        // 6. Identifier.identifier (accession)
+
+        // TEMP: Remove once build is secured
         Ok(AstNode::BinaryOp {
             left: AstNode::Integer(5).into(),
-            operator: ArithmeticOperators::ADD,
+            operator: Operators::Arithmetic(ArithmeticOperators::ADD),
             right: AstNode::Integer(5).into(),
         })
     }
 
     fn parse_number(&mut self, start_pos: usize, start_token: &Token) -> Result<AstNode, ParserError> {
+        // We can enter here from two places:
+        // 1. Matching a FullStop, and the previous AstToken was an integer or float (this should never happen... right?)
+        // - Here, we need to convert the previous AstToken's value into a String, concatenate it with a FullStop, and continue parsing
+        // 2. Matching a Token::Number
+        // - Here, we need to do regular parsing (step until second FullStop (error) or first non-Number (ok))
+
         let mut numstr = String::new();
 
         // Valid numbers start with a number or a full stop (if float)

@@ -19,6 +19,7 @@ pub enum ParserError {
     MalformedNumber(usize, usize, String),     // (pos, line, value)
     InvalidOperation(usize, usize, String),    // (pos, line, value)
     BinaryOpWithNoLHS(usize, usize),           // (pos, line)
+    BinaryOpWithNoRHS(usize, usize),           // (pos, line)
 }
 
 impl Error for ParserError {}
@@ -37,6 +38,8 @@ impl fmt::Display for ParserError {
                 write!(f, "Parser error at source line {}, token position {}: Invalid operation '{}'", line, pos, valuestr),
             ParserError::BinaryOpWithNoLHS(pos, line) =>
                 write!(f, "Parser error at source line {}, token position {}: Binary operation with no left-hand side", line, pos),
+            ParserError::BinaryOpWithNoRHS(pos, line) =>
+                write!(f, "Parser error at source line {}, token position {}: Binary operation with no right-hand side", line, pos)
         }
     }
 }
