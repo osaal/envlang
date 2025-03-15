@@ -31,7 +31,7 @@
     - [x] Implementation
     - [x] Tests
     - [x] Documentation
-- [ ] Parser
+- [ ] Parser (started in version 0.5.3)
     - [ ] Implementation
     - [ ] Tests
     - [ ] Documentation
