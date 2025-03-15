@@ -8,6 +8,52 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.5
+
+#### Major changes
+
+None yet.
+
+#### Minor changes
+
+None yet.
+
+### Version 0.5.4
+
+#### Major changes
+
+- Split up operator enums into `ArithmeticOperators` and `OtherOperators`
+- Operators are now sub-enumerated in `symbols::Operators` (either `Arithmetic(ArithmeticOperators)` or `Other(OtherOperators)`)
+- Lexer now returns operator enums as opposed to strings. Consequently, `AstNode` now takes an `Operators` enum variant in `BinaryOp`
+- `ParserError` now contains many more error types to match parsing error states
+- The `Parser` now holds the parsed items in a `bindings` vector
+- Refactored `parse_program` into `parse_environment`, extending its usage to all Environment objects
+- The Parser now handles environments and ends-of-file correctly
+- Added scaffolding for parsing binary operators and environment accession
+
+#### Minor changes
+
+- Added trait derivations for `AstNode`
+- Corrected existing tests and added new tests for new operator enum pattern
+- Added the `ToString` trait implementation for `AstNode`, `ArithmeticOperators` and `OtherOperators`
+- Corrected existing tests and added new tests for `Parser`
+
+### Version 0.5.3
+
+#### Major changes
+
+- The parser has been rewritten. Its structure matches that of the `Lexer`. Parsing is initiated by calling the `parse()` method, which interally calls `parse_program()` to walk the input `Token` vector and match the tokens to respective `parse_[item]` sub-methods.
+- Implemented parsing for strings, whitespace, and numbers (integers and floats).
+- Implemented skeleton of operator parsing
+- Added the enum `AstNode`, which represents the parsed abstract syntax tree nodes in the parser.
+- Reworked the error type `ParserError` to match the structure of `LexerError`
+
+#### Minor changes
+
+- Clarified and updated grammar in `grammar.ebnf`
+- Added many tests for `Parser`
+- Added trait derivations for `symbols::ArithmethicOperators` and `lexer::Token`
+
 ### Version 0.5.2
 
 #### Major changes
