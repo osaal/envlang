@@ -2,7 +2,7 @@ mod astnode;
 mod error;
 
 use crate::lexer::Token;
-use crate::symbols::{Keywords, Booleans, Operators};
+use crate::symbols::{Keywords, Booleans, Operators, OtherOperators};
 use crate::environment::EnvScope;
 use std::rc::Rc;
 use std::borrow::Borrow;
@@ -84,27 +84,10 @@ impl Parser {
                 Token::RightBrace => todo!(),
                 Token::Identifier(_) => todo!(),
                 Token::FullStop => {
-                    if let Some(prev) = self.bindings.pop() {
-                        // Check type of AstNode
-                        // If it is an identifier, FullStop represents the accessor operation
-                        match prev.borrow() {
-                            AstNode::Integer(_) | AstNode::Float(_) => {
-                                // We're building a number!
-                                // However, this should have been caught by Token::Number in a previous step...
-                            },
-                            AstNode::Identifier(_) | AstNode::Environment { .. } => {
-                                // We're accessing an identifier or environment!
-                                // This will not have been caught by any match arm or sub-method yet
-                            },
-                            _ => {
-                                // Syntax error, a full stop does not belong here!
-                            },
-                        }
-                    } else {
-                        // Syntax error, a full stop does not belong at the start of the source code!
-                    }
+                    let temp = self.parse_accession(pos)?.into();
+                    self.bindings.push(temp);
                 },
-                Token::Number(_) => { // FullStop is caught before and sent to number parsing if syntactically correct
+                Token::Number(_) => {
                     let temp = self.parse_number(pos, &token)?.into();
                     self.bindings.push(temp);
                 },
@@ -141,6 +124,38 @@ impl Parser {
         })
     }
 
+    /// Parse an accession operation
+    /// 
+    /// Returns an AST node representing the accession operation
+    /// 
+    /// # Errors
+    /// Returns an error if the accession operation is invalid
+    fn parse_accession(&mut self, pos: usize) -> Result<AstNode, ParserError> {
+        if let Some(prev) = self.bindings.pop() {
+            match prev.borrow() {
+                AstNode::Integer(_) | AstNode::Float(_) => {
+                    // We should have caught the FullStop before, so instead we'll throw an error here
+                    return Err(ParserError::ParserLogicError(pos, self.line))
+                },
+                AstNode::Identifier(_) | AstNode::Environment { .. } => {
+                    // We're accessing an identifier or environment!
+                    return Ok(AstNode::BinaryOp {
+                        left: prev.clone(),
+                        operator: Operators::Other(OtherOperators::ACCESSOR),
+                        right: AstNode::Integer(5).into()
+                    })
+                },
+                _ => {
+                    // Syntax error, a full stop does not belong here!
+                    return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop.to_string()))
+                },
+            }
+        } else {
+            // Syntax error, source code cannot start with a full stop!
+            return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop.to_string()))
+        }
+    }
+    
     /// Parse a string literal
     /// 
     /// Returns an AST node containing the string literal
@@ -179,12 +194,6 @@ impl Parser {
     }
 
     fn parse_number(&mut self, start_pos: usize, start_token: &Token) -> Result<AstNode, ParserError> {
-        // We can enter here from two places:
-        // 1. Matching a FullStop, and the previous AstToken was an integer or float (this should never happen... right?)
-        // - Here, we need to convert the previous AstToken's value into a String, concatenate it with a FullStop, and continue parsing
-        // 2. Matching a Token::Number
-        // - Here, we need to do regular parsing (step until second FullStop (error) or first non-Number (ok))
-
         let mut numstr = String::new();
 
         // Valid numbers start with a number or a full stop (if float)
@@ -206,10 +215,11 @@ impl Parser {
                     if numstr.contains(".") {
                         return Err(ParserError::MalformedNumber(self.current, self.line, numstr));
                     }
-
                     numstr.push_str(".");
                     self.next();
                 },
+                Token::Whitespace(_) =>
+                    return Err(ParserError::WhitespaceInNumber(self.current, self.line, numstr)),
                 _ => break,
             }
         }
@@ -252,6 +262,7 @@ mod tests {
         assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(5.0))], parent: None, scope: EnvScope::LOCAL });
     }
 
+    // TODO: Fix this test: Currently, it errors on meeting a FullStop as the first token (as it should!)
     #[test]
     fn float_with_leading_decimal() {
         let tokens = vec![
@@ -291,5 +302,17 @@ mod tests {
         let ast = parser.parse();
         assert!(ast.is_err());
         assert_eq!(ast.unwrap_err(), ParserError::NotANumber(1, 1, "abc".into()));
+    }
+
+    #[test]
+    fn cannot_start_with_fullstop() {
+        let tokens = vec![
+            Token::FullStop,
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse();
+        assert!(ast.is_err());
+        assert_eq!(ast.unwrap_err(), ParserError::InvalidOperation(0, 1, ".".to_string()))
     }
 }

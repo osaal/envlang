@@ -15,11 +15,13 @@ use std::fmt;
 /// - Attempted operation parameters
 #[derive(Debug, PartialEq)]
 pub enum ParserError {
-    NotANumber(usize, usize, String),          // (pos, line, value)
-    MalformedNumber(usize, usize, String),     // (pos, line, value)
-    InvalidOperation(usize, usize, String),    // (pos, line, value)
-    BinaryOpWithNoLHS(usize, usize),           // (pos, line)
-    BinaryOpWithNoRHS(usize, usize),           // (pos, line)
+    NotANumber(usize, usize, String),           // (pos, line, value)
+    MalformedNumber(usize, usize, String),      // (pos, line, value)
+    InvalidOperation(usize, usize, String),     // (pos, line, value)
+    BinaryOpWithNoLHS(usize, usize),            // (pos, line)
+    BinaryOpWithNoRHS(usize, usize),            // (pos, line)
+    WhitespaceInNumber(usize, usize, String),   // (pos, line, value)
+    ParserLogicError(usize, usize),             // (pos, line)
 }
 
 impl Error for ParserError {}
@@ -39,7 +41,11 @@ impl fmt::Display for ParserError {
             ParserError::BinaryOpWithNoLHS(pos, line) =>
                 write!(f, "Parser error at source line {}, token position {}: Binary operation with no left-hand side", line, pos),
             ParserError::BinaryOpWithNoRHS(pos, line) =>
-                write!(f, "Parser error at source line {}, token position {}: Binary operation with no right-hand side", line, pos)
+                write!(f, "Parser error at source line {}, token position {}: Binary operation with no right-hand side", line, pos),
+            ParserError::WhitespaceInNumber(pos, line, valuestr) => 
+                write!(f, "Parser error at source line {}, token position {}: Whitespace inside number '{}'", line, pos, valuestr),
+            ParserError::ParserLogicError(pos, line) =>
+                write!(f, "Parser error at source line {}, token position {}: Internal parser logic error", line, pos),
         }
     }
 }
