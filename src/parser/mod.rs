@@ -137,7 +137,16 @@ impl Parser {
                         return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
                     }
                 },
-                Token::LineTerminator(_) => todo!(),
+                Token::LineTerminator(_) => {
+                    if name.is_some() {
+                        return Ok(AstNode::Environment {
+                            name,
+                            bindings: current_bindings,
+                            parent,
+                            scope: EnvScope::LOCAL
+                        });
+                    }
+                },
                 Token::EOF => {
                     // Only valid in the global environment, every other occurrence is an error
                     if parent.is_none() {
@@ -163,41 +172,36 @@ impl Parser {
     /// # Errors
     /// Returns an error if the assignment operation is invalid
     fn parse_assignment(&mut self, parent_env: Option<Rc<AstNode>>) -> Result<AstNode, ParserError> {
-        self.debug_next_token();
         while let Some((pos, token)) = self.advance() {
-            self.debug_next_token();
-            self.debug_token_tuple(pos, &token);
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
                 Token::Identifier(id) => {
-                    while let Some((pos, token)) = self.advance() {
-                        self.debug_next_token();
-                        self.debug_token_tuple(pos, &token);
-                        match token.borrow() {
-                            Token::Whitespace(ws) => self.parse_whitespace(ws),
-                            Token::Operator(op) => {
-                                match op {
-                                    Operators::Other(OtherOperators::ASSIGNMENT) => {
-                                        let expr = self.parse_environment(parent_env.clone(), Some(id.clone()))?;
-                                        return Ok(AstNode::Let {
-                                            name: id.clone(),
-                                            value: Rc::new(expr)
-                                        });
-                                    },
-                                    _ => return Err(ParserError::InvalidAssignmentOp(pos, self.line, token.to_string())),
-                                }
-                            },
-                            _ => return Err(ParserError::MissingAssignmentOp(pos, self.line)),
-                        }
-                    }
+                    return Ok(self.construct_let_statement(&parent_env, id)?);
                 },
                 _ => return Err(ParserError::MissingLetIdentifier(pos, self.line)), 
             }
         }
-
-        return Ok(AstNode::Integer(5));
+        Err(ParserError::ParserLogicError(self.current, self.line))
     }
 
+    fn construct_let_statement(&mut self, parent_env: &Option<Rc<AstNode>>, id: &Rc<str>) -> Result<AstNode, ParserError> {
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::Operator(op) => {
+                    if *op == Operators::Other(OtherOperators::ASSIGNMENT) {
+                        let expr = self.parse_environment(parent_env.clone(), Some(id.clone()))?;
+                        return flatten_let_expression(id, expr, pos, self.line, &token);
+                    } else {
+                        return Err(ParserError::InvalidAssignmentOp(pos, self.line, token.to_string()));
+                    }
+                },
+                _ => return Err(ParserError::MissingAssignmentOp(pos, self.line)),
+            }
+        }
+        Err(ParserError::ParserLogicError(self.current, self.line))
+    }
+    
     /// Parse an accession operation
     /// 
     /// Returns an AST node representing the accession operation
@@ -324,6 +328,34 @@ impl Parser {
     }
 }
 
+/// Flatten a let expression into a single let binding
+/// 
+/// If the let expression contains only one binding, it is flattened into a single let binding
+/// 
+/// Otherwise, the let expression is returned as is
+/// 
+/// # Errors
+/// Returns an error if the let expression body is empty
+fn flatten_let_expression(id: &Rc<str>, expr: AstNode, pos: usize, line: usize, token: &Token) -> Result<AstNode, ParserError> {
+    let result: Result<AstNode, ParserError>;
+    if let Some(bindings) = expr.get_bindings() {
+        if bindings.len() == 1 {
+            result = Ok(AstNode::Let {
+                name: id.clone(),
+                value: bindings[0].clone()
+            });
+        } else {
+            result = Ok(AstNode::Let {
+                name: id.clone(),
+                value: Rc::new(expr)
+            });
+        }
+    } else {
+        result = Err(ParserError::EmptyEnv(pos, line, token.to_string()))
+    }
+    return result;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -400,6 +432,7 @@ mod tests {
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);

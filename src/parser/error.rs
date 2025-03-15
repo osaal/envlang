@@ -27,6 +27,7 @@ pub enum ParserError {
     MissingLetIdentifier(usize, usize),         // (pos, line)
     MissingAssignmentOp(usize, usize),          // (pos, line)
     InvalidAssignmentOp(usize, usize, String),  // (pos, line, value)
+    EmptyEnv(usize, usize, String),             // (pos, line, value)
 }
 
 impl Error for ParserError {}
@@ -61,6 +62,8 @@ impl fmt::Display for ParserError {
                 write!(f, "Parser error at source line {}, token position {}: Missing assignment operator '='", line, pos),
             ParserError::InvalidAssignmentOp(pos, line, valuestr) =>
                 write!(f, "Parser error at source line {}, token position {}: Expected assignment operator '=', not '{}'", line, pos, valuestr),
+            ParserError::EmptyEnv(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Empty environment '{}'", line, pos, valuestr),
         }
     }
 }
