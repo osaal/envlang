@@ -13,14 +13,12 @@ use std::fs::read_to_string;
 /// 
 /// It also errors if the file does not end in the `.envl` file extension (`std::io::ErrorKind::InvalidInput`)
 pub fn read_file(path: &str) -> Result<String, std::io::Error> {
-    // Envlang files must have the .envl suffix to work
     if !path.ends_with(".envl") {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "File must have .envl extension",
         ));
     }
-    
     return Ok(read_to_string(path)?);
 }
 

@@ -92,7 +92,7 @@ impl ToString for OtherOperators {
 /// -  `DASH`: The dash symbol `-`
 /// -  `UNDERSCORE`: The underscore symbol `_`
 /// 
-/// The enum derives the traits `Debug` and `Clone`.
+/// The enum derives the traits `Debug`, and `Clone`.
 #[derive(Debug, Clone)]
 pub enum GenericSymbols {
     DASH,           // -
@@ -141,7 +141,7 @@ impl ToString for ReservedSymbols {
 /// -  `SINGLEQUOTE`: Single quote symbol a.k.a. apostrophe `'`
 /// -  `ESCAPE`: Escape character `\`
 /// 
-/// The enum derives the traits `Debug` and `Clone`.
+/// The enum derives the traits `Debug`, and `Clone`.
 #[derive(Debug, Clone)]
 pub enum StringSymbols {
     DOUBLEQUOTE,    // "

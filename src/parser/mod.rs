@@ -2,7 +2,7 @@ mod astnode;
 mod error;
 
 use crate::lexer::Token;
-use crate::symbols::{Keywords, Booleans, Operators, OtherOperators, ReservedSymbols};
+use crate::symbols::{Keywords, Booleans, Operators, OtherOperators};
 use crate::environment::EnvScope;
 use std::rc::Rc;
 use std::borrow::Borrow;
@@ -23,19 +23,15 @@ impl Parser {
             tokens,
             bindings: Vec::new(),
             current: 0,
-            line: 1     // Used for informative errors
+            line: 1
         }
     }
 
     /// Get the current token in queue
-    fn peek(&self) -> Option<&Token> {
-        self.tokens.get(self.current)
-    }
+    fn peek(&self) -> Option<&Token> { self.tokens.get(self.current) }
 
     /// Increment the current token index by 1
-    fn next(&mut self) {
-        self.current += 1;
-    }
+    fn next(&mut self) { self.current += 1; }
 
     /// Get current token and advance the index by 1
     /// 
@@ -61,9 +57,7 @@ impl Parser {
     /// 
     /// # Errors
     /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
-    pub fn parse(&mut self) -> Result<AstNode, ParserError> {
-        self.parse_environment(None, None)
-    }
+    pub fn parse(&mut self) -> Result<AstNode, ParserError> { self.parse_environment(None, None) }
 
     /// Parse an environment
     /// 
@@ -72,31 +66,16 @@ impl Parser {
     /// # Errors
     /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
     fn parse_environment(&mut self, parent: Option<Rc<AstNode>>, name: Option<Rc<str>>) -> Result<AstNode, ParserError> {
-        // Thoughts about implementing matching Operator:
-        // - It would be better to match against crate::symbol::Operator
-        // - However, operators can be either ArithmeticOperators other reserved symbols
-        // - There are now two operator enums: ArithmeticOperators and OtherOperators
-        // - These now need to be used in the lexer and parser instead of string literals
-
         let mut current_bindings = Vec::new();
-        self.debug_next_token();
-
         while let Some((pos, token)) = self.advance() {
-            self.debug_next_token();
-            self.debug_token_tuple(pos, &token);
             match token.borrow() {
                 Token::LeftBrace(_) => {
-                    // Ignore global braces (global env is constructed by Token::EOF)
-                    if parent.is_none() { continue; };
-                    let sub_env = self.parse_environment(
-                        parent.clone(),
-                        None
-                    )?;
+                    if parent.is_none() { continue; }; // Global env is constructed by Token::EOF
+                    let sub_env = self.parse_environment(parent.clone(), None)?;
                     current_bindings.push(Rc::new(sub_env));
                 },
                 Token::RightBrace(_) => {
-                    // Ignore global braces (global env is constructed by Token::EOF)
-                    if parent.is_none() { continue; };
+                    if parent.is_none() { continue; }; // Global env is constructed by Token::EOF
                     return Ok(AstNode::Environment {
                         name,
                         bindings: current_bindings,
@@ -104,7 +83,8 @@ impl Parser {
                         scope: EnvScope::LOCAL
                     })
                 },
-                Token::Identifier(_) => todo!(),
+                Token::Identifier(_) =>
+                    todo!(),
                 Token::FullStop(_) => {
                     let node = self.parse_accession(pos)?;
                     current_bindings.push(Rc::new(node));
@@ -125,8 +105,10 @@ impl Parser {
                     let node = self.parse_assignment(parent.clone())?;
                     current_bindings.push(Rc::new(node));
                 },
-                Token::Keyword(Keywords::INHERIT) => todo!(),
-                Token::Keyword(Keywords::FUN) => todo!(),
+                Token::Keyword(Keywords::INHERIT) =>
+                    todo!(),
+                Token::Keyword(Keywords::FUN) =>
+                    todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
                 Token::Operator(op) => {
@@ -175,9 +157,7 @@ impl Parser {
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
-                Token::Identifier(id) => {
-                    return Ok(self.construct_let_statement(&parent_env, id)?);
-                },
+                Token::Identifier(id) => return Ok(self.construct_let_statement(&parent_env, id)?),
                 _ => return Err(ParserError::MissingLetIdentifier(pos, self.line)), 
             }
         }
@@ -204,6 +184,8 @@ impl Parser {
     
     /// Parse an accession operation
     /// 
+    /// NOT YET IMPLEMENTED
+    /// 
     /// Returns an AST node representing the accession operation
     /// 
     /// # Errors
@@ -212,24 +194,20 @@ impl Parser {
         if let Some(prev) = self.bindings.pop() {
             match prev.borrow() {
                 AstNode::Integer(_) | AstNode::Float(_) => {
-                    // We should have caught the FullStop before, so instead we'll throw an error here
+                    // We should have caught the FullStop in parse_number()
                     return Err(ParserError::ParserLogicError(pos, self.line))
                 },
                 AstNode::Identifier(_) | AstNode::Environment { .. } => {
-                    // We're accessing an identifier or environment!
+                    // TODO: Implement accession
                     return Ok(AstNode::BinaryOp {
                         left: prev.clone(),
                         operator: Operators::Other(OtherOperators::ACCESSOR),
                         right: AstNode::Integer(5).into()
                     })
                 },
-                _ => {
-                    // Syntax error, a full stop does not belong here!
-                    return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop(OtherOperators::ACCESSOR).to_string()))
-                },
+                _ => return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop(OtherOperators::ACCESSOR).to_string())),
             }
         } else {
-            // Syntax error, source code cannot start with a full stop!
             return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop(OtherOperators::ACCESSOR).to_string()))
         }
     }
@@ -237,23 +215,18 @@ impl Parser {
     /// Parse a string literal
     /// 
     /// Returns an AST node containing the string literal
-    fn parse_string(&mut self, string: &Rc<str>) -> Result<AstNode, ParserError> {
-        Ok(AstNode::String(string.clone()))
-    }
+    fn parse_string(&mut self, string: &Rc<str>) -> Result<AstNode, ParserError> { Ok(AstNode::String(string.clone())) }
 
     /// Parse a whitespace token
     /// 
     /// Increments the line counter if the whitespace is a new-line character
     /// 
     /// In other cases, does nothing
-    fn parse_whitespace(&mut self, ws: &Rc<str>) {
-        // Increase line counter if whitespace is new-line char
-        match ws.borrow() {
-            "\r\n" | "\n" => self.line += 1,
-            _ => (),
-        }
-    }
+    fn parse_whitespace(&mut self, ws: &Rc<str>) { match ws.borrow() { "\r\n" | "\n" => self.line += 1, _ => () }}
 
+    /// Parse an operator
+    /// 
+    /// NOT YET IMPLEMENTED
     fn parse_operator(&mut self, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
         // Here are (some) valid operations that need to be covered:
         // 1. String + {string, identifier representing string} (concatenation)
@@ -271,9 +244,9 @@ impl Parser {
         })
     }
 
+    /// Parse a number-like type
     fn parse_number(&mut self, start_pos: usize, start_token: &Token) -> Result<AstNode, ParserError> {
         let mut numstr = String::new();
-
         // Valid numbers start with a number or a full stop (if float)
         match start_token {
             Token::Number(num) => numstr.push_str(num),
@@ -281,7 +254,6 @@ impl Parser {
             _ => return Err(ParserError::NotANumber(start_pos, self.line, numstr)),
         }
         
-        // Numbers are stored as singular tokens from the lexer, so they need to be concatenated first
         while let Some(token) = self.peek() {
             match token {
                 Token::Number(num) => {
@@ -289,15 +261,13 @@ impl Parser {
                     self.next();
                 },
                 Token::FullStop(_) => {
-                    // A float can only have one decimal point
-                    if numstr.contains(".") {
+                    if numstr.contains(".") { // A float can only have one decimal point
                         return Err(ParserError::MalformedNumber(self.current, self.line, numstr));
                     }
                     numstr.push_str(".");
                     self.next();
                 },
-                Token::Whitespace(_) =>
-                    return Err(ParserError::WhitespaceInNumber(self.current, self.line, numstr)),
+                Token::Whitespace(_) => return Err(ParserError::WhitespaceInNumber(self.current, self.line, numstr)),
                 _ => break,
             }
         }
@@ -312,19 +282,15 @@ impl Parser {
     }
 
     /// Debugging function to print the next token in the token queue
+    #[allow(dead_code)]
     fn debug_next_token(&self) {
-        println!("Next token at index: {}, token: {:?}",
-            self.current,
-            self.peek()
-        );
+        println!("Next token at index: {}, token: {:?}", self.current, self.peek());
     }
 
     /// Debugging function to print a pos-token tuple
+    #[allow(dead_code)]
     fn debug_token_tuple(&self, pos: usize, token: &Token) {
-        println!("Grabbed token at index: {}, token: {:?}",
-            pos,
-            token
-        );
+        println!("Grabbed token at index: {}, token: {:?}", pos, token);
     }
 }
 
@@ -350,15 +316,14 @@ fn flatten_let_expression(id: &Rc<str>, expr: AstNode, pos: usize, line: usize, 
                 value: Rc::new(expr)
             });
         }
-    } else {
-        result = Err(ParserError::EmptyEnv(pos, line, token.to_string()))
-    }
+    } else { result = Err(ParserError::EmptyEnv(pos, line, token.to_string())) }
     return result;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::symbols::ReservedSymbols;
 
     #[test]
     fn int() {

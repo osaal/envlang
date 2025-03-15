@@ -106,7 +106,6 @@ impl Lexer {
     /// - `LexerError::IndexOutOfBounds` if the index of the requested element is beyond input length
     fn peek_n(&self, n: usize) -> Result<Rc<str>, LexerError> {
         let length: usize = self.input.len();
-
         if self.current > length {
             Err(LexerError::BrokenLexer(self.current, length))
         } else if n >= length {
@@ -132,7 +131,6 @@ impl Lexer {
     /// - Errors curried from the `tokenize_` methods
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
-        
         while let Some((pos, unicode_string)) = self.iterate() {
             match unicode_string.borrow() {
                 "{" =>
@@ -158,7 +156,6 @@ impl Lexer {
                 _ => return Err(LexerError::UnrecognizedInput(pos, unicode_string.to_string()))
             }
         }
-
         tokens.push(Token::EOF);
         return Ok(tokens);
     }
@@ -179,15 +176,11 @@ impl Lexer {
     /// The function is guaranteed to gracefully and silently handle other potential scenarios, so no further error conditions are necessary
     fn tokenize_number(&mut self, unicode_string: &str, pos: usize) -> Result<Token, LexerError> {
         // Exit early on empty string
-        if unicode_string.is_empty() {
-            return Err(LexerError::InvalidToken(pos, String::new()));
-        }
+        if unicode_string.is_empty() { return Err(LexerError::InvalidToken(pos, String::new())); }
 
         // Validate first character to exit early in case of inappropriate input
-        if !unicode_string.chars().all(|c| c.is_ascii_digit()) {
-            return Err(LexerError::InvalidToken(pos, unicode_string.to_string()));
-            // TODO: Write test to check this error's pos value, in case we are off-by-one
-        }
+        // TODO: Write test to check this error's pos value, in case we are off-by-one
+        if !unicode_string.chars().all(|c| c.is_ascii_digit()) { return Err(LexerError::InvalidToken(pos, unicode_string.to_string())); }
 
         let mut number = unicode_string.to_string();
 
@@ -202,7 +195,6 @@ impl Lexer {
             let (_, digit) = self.iterate().unwrap();
             number.push_str(&digit);
         }
-
         return Ok(Token::Number(Rc::from(number)));
     }
 
@@ -226,22 +218,20 @@ impl Lexer {
     /// - `LexerError::InvalidToken` if the input stream did not start with an alphabetic character
     /// - `LexerError::EmptyIdentifier` if the input stream is empty
     fn tokenize_alphabetics(&mut self, unicode_string: &str, pos: usize) -> Result<Token, LexerError> {
-        if unicode_string == "" {
-            return Err(LexerError::EmptyIdentifier(pos));
-        }
+        if unicode_string == "" { return Err(LexerError::EmptyIdentifier(pos)); }
 
         // Doesn't start with an alphabetic character == invalid identifier/boolean/keyword
-        if !unicode_string.chars().all(|c| c.is_alphabetic()) {
-            return Err(LexerError::InvalidToken(pos, unicode_string.to_string()));
-        }
-        let mut temp = unicode_string.to_string();
+        if !unicode_string.chars().all(|c| c.is_alphabetic()) { return Err(LexerError::InvalidToken(pos, unicode_string.to_string())); }
         
         // The set of valid symbols is that of an identifier, with booleans and keywords having subsets of identifiers
+        let mut temp = unicode_string.to_string();
         while let Ok(following_unicode_string) = self.peek_n(self.current) {
             match following_unicode_string.as_ref() {
-                s if s.chars().all(|c| c.is_alphanumeric()) ||
+                s if s.chars().all(
+                    |c| c.is_alphanumeric()) ||
                     s == "-" ||
-                    s == "_" => {
+                    s == "_" =>
+                    {
                         let (_, ch) = self.iterate().unwrap();
                         temp.push_str(&ch);
                     },
@@ -276,7 +266,6 @@ impl Lexer {
     /// - Other errors curried from `peek_n()`
     fn tokenize_string(&mut self, matched: &str, start_pos: usize) -> Result<Token, LexerError> {
         let mut value: String = String::new();
-
         loop {
             match self.peek_n(self.current) {
                 Ok(ch) => {
@@ -288,14 +277,11 @@ impl Lexer {
                         break;
                     }
                 },
-                Err(LexerError::IndexOutOfBounds(_, _, _)) |
-                Err(LexerError::BrokenLexer(_, _)) => {
-                    return Err(LexerError::UnterminatedString(start_pos, value))
-                },
+                Err(LexerError::IndexOutOfBounds(_, _, _)) | Err(LexerError::BrokenLexer(_, _)) =>
+                    return Err(LexerError::UnterminatedString(start_pos, value)),
                 Err(e) => return Err(e),
             }
         }
-
         Ok(Token::StringLiteral(Rc::from(value)))
     }
 
@@ -310,7 +296,6 @@ impl Lexer {
             "=" => Ok(Operators::Other(OtherOperators::ASSIGNMENT)),
             _ => Err(LexerError::UnrecognizedInput(pos, unicode_string.to_string()))?,
         };
-
         return Ok(Token::Operator(operator?));
     }
 }
@@ -319,7 +304,6 @@ impl Lexer {
 #[cfg(test)]
 mod tests {
     use crate::symbols::ArithmeticOperators;
-
     use super::*;
 
     // Error condition tests

@@ -77,23 +77,19 @@ impl ToString for AstNode {
             AstNode::Function { params, .. }
                 => format!("Function with params [{}]", params.join(", ")),
             AstNode::FunctionCall { callee, arguments }
-                => format!("Function call by {} with arguments [{}]", callee.to_string(), arguments.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(", ")),
+                => format!("Function call by {} with arguments [{}]",
+                    callee.to_string(),
+                    arguments.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(", ")
+                ),
         }
     }
 }
 
 impl AstNode {
-    pub fn is_environment(&self) -> bool {
-        matches!(self, AstNode::Environment { .. })
-    }
+    // Check whether the node is an environment
+    pub fn is_environment(&self) -> bool { matches!(self, AstNode::Environment { .. }) }
 
-    pub fn as_identifier(&self) -> Option<&str> {
-        match self {
-            AstNode::Identifier(name) => Some(name),
-            _ => None,
-        }
-    }
-
+    // Get the bindings of an environment
     pub fn get_bindings(&self) -> Option<Vec<Rc<AstNode>>> {
         match self {
             AstNode::Environment { bindings, .. } => Some(bindings.to_vec()),
