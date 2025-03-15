@@ -12,11 +12,11 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 #### Major changes
 
-None yet.
+- The parser now handles the `let` keyword (but the implementation is temporarily bugged because of a lack of handling line terminators)
 
 #### Minor changes
 
-None yet.
+- Added new error types to `ParserError`
 
 ### Version 0.5.4
 

@@ -24,6 +24,9 @@ pub enum ParserError {
     ParserLogicError(usize, usize),             // (pos, line)
     UnexpectedEOF(usize, usize),                // (pos, line)
     UnclosedEnvironment(usize),                 // (line)
+    MissingLetIdentifier(usize, usize),         // (pos, line)
+    MissingAssignmentOp(usize, usize),          // (pos, line)
+    InvalidAssignmentOp(usize, usize, String),  // (pos, line, value)
 }
 
 impl Error for ParserError {}
@@ -52,6 +55,12 @@ impl fmt::Display for ParserError {
                 write!(f, "Parser error at source line {}, token position {}: Unexpected end of file", line, pos),
             ParserError::UnclosedEnvironment(line) =>
                 write!(f, "Parser error at source line {}: Unclosed environment", line),
+            ParserError::MissingLetIdentifier(pos, line) =>
+                write!(f, "Parser error at source line {}, token position {}: Missing identifier after 'let'", line, pos),
+            ParserError::MissingAssignmentOp(pos, line) =>
+                write!(f, "Parser error at source line {}, token position {}: Missing assignment operator '='", line, pos),
+            ParserError::InvalidAssignmentOp(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected assignment operator '=', not '{}'", line, pos, valuestr),
         }
     }
 }

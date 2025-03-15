@@ -79,8 +79,11 @@ impl Parser {
         // - These now need to be used in the lexer and parser instead of string literals
 
         let mut current_bindings = Vec::new();
+        self.debug_next_token();
 
         while let Some((pos, token)) = self.advance() {
+            self.debug_next_token();
+            self.debug_token_tuple(pos, &token);
             match token.borrow() {
                 Token::LeftBrace => {
                     // Ignore global braces (global env is constructed by Token::EOF)
@@ -118,7 +121,10 @@ impl Parser {
                     current_bindings.push(Rc::new(AstNode::Boolean(true))),
                 Token::Boolean(Booleans::FALSE) => 
                     current_bindings.push(Rc::new(AstNode::Boolean(false))),
-                Token::Keyword(Keywords::LET) => todo!(),
+                Token::Keyword(Keywords::LET) => {
+                    let node = self.parse_assignment(parent.clone())?;
+                    current_bindings.push(Rc::new(node));
+                },
                 Token::Keyword(Keywords::INHERIT) => todo!(),
                 Token::Keyword(Keywords::FUN) => todo!(),
                 Token::Whitespace(ws) =>
@@ -147,6 +153,48 @@ impl Parser {
             }
         }
         Err(ParserError::UnclosedEnvironment(self.line))
+    }
+
+    /// Parse an assignment operation
+    /// 
+    /// Returns an AST node representing the assignment operation
+    /// 
+    /// # Errors
+    /// Returns an error if the assignment operation is invalid
+    fn parse_assignment(&mut self, parent_env: Option<Rc<AstNode>>) -> Result<AstNode, ParserError> {
+        self.debug_next_token();
+        while let Some((pos, token)) = self.advance() {
+            self.debug_next_token();
+            self.debug_token_tuple(pos, &token);
+            match token.borrow() {
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::Identifier(id) => {
+                    while let Some((pos, token)) = self.advance() {
+                        self.debug_next_token();
+                        self.debug_token_tuple(pos, &token);
+                        match token.borrow() {
+                            Token::Whitespace(ws) => self.parse_whitespace(ws),
+                            Token::Operator(op) => {
+                                match op {
+                                    Operators::Other(OtherOperators::ASSIGNMENT) => {
+                                        let expr = self.parse_environment(parent_env.clone(), Some(id.clone()))?;
+                                        return Ok(AstNode::Let {
+                                            name: id.clone(),
+                                            value: Rc::new(expr)
+                                        });
+                                    },
+                                    _ => return Err(ParserError::InvalidAssignmentOp(pos, self.line, token.to_string())),
+                                }
+                            },
+                            _ => return Err(ParserError::MissingAssignmentOp(pos, self.line)),
+                        }
+                    }
+                },
+                _ => return Err(ParserError::MissingLetIdentifier(pos, self.line)), 
+            }
+        }
+
+        return Ok(AstNode::Integer(5));
     }
 
     /// Parse an accession operation
@@ -257,6 +305,22 @@ impl Parser {
             .or_else(|_| numstr.parse::<f64>().map(|num| AstNode::Float(num)))
             .map_err(|_| ParserError::NotANumber(self.current, self.line, numstr))
     }
+
+    /// Debugging function to print the next token in the token queue
+    fn debug_next_token(&self) {
+        println!("Next token at index: {}, token: {:?}",
+            self.current,
+            self.peek()
+        );
+    }
+
+    /// Debugging function to print a pos-token tuple
+    fn debug_token_tuple(&self, pos: usize, token: &Token) {
+        println!("Grabbed token at index: {}, token: {:?}",
+            pos,
+            token
+        );
+    }
 }
 
 #[cfg(test)]
@@ -326,6 +390,28 @@ mod tests {
         } else {
             panic!("Expected Environment node");
         }
+    }
+
+    #[test]
+    fn valid_assignment() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("5".into()),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "x".into(),
+                value: Rc::new(AstNode::Integer(5))
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
     }
 
     // TODO: Fix this test once the error handling is fixed to be more informative
