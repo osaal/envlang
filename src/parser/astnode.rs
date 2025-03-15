@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use crate::{environment::EnvScope, symbols::Operators};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AstNode {
     // Literals
     Integer(isize),

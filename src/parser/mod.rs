@@ -55,73 +55,98 @@ impl Parser {
 
     /// Parse the tokens into an AST
     /// 
-    /// Returns an AST node representing the program
+    /// Returns an AST node representing the global environment of the program
     /// 
-    /// Simple wrapper for the `parse_program` internal method
+    /// The global environment will contain every element defined in the source code
     /// 
     /// # Errors
     /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
     pub fn parse(&mut self) -> Result<AstNode, ParserError> {
-        self.parse_program()
+        self.parse_environment(None, None)
     }
 
-    /// Parse the program
+    /// Parse an environment
     /// 
-    /// Returns an AST node containing an Environment representing the program
+    /// Returns an AST node containing an Environment
     /// 
     /// # Errors
     /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
-    fn parse_program(&mut self) -> Result<AstNode, ParserError> {
+    fn parse_environment(&mut self, parent: Option<Rc<AstNode>>, name: Option<Rc<str>>) -> Result<AstNode, ParserError> {
         // Thoughts about implementing matching Operator:
         // - It would be better to match against crate::symbol::Operator
         // - However, operators can be either ArithmeticOperators other reserved symbols
         // - There are now two operator enums: ArithmeticOperators and OtherOperators
         // - These now need to be used in the lexer and parser instead of string literals
 
+        let mut current_bindings = Vec::new();
+
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
-                Token::LeftBrace => todo!(),
-                Token::RightBrace => todo!(),
+                Token::LeftBrace => {
+                    // Ignore global braces (global env is constructed by Token::EOF)
+                    if parent.is_none() { continue; };
+                    let sub_env = self.parse_environment(
+                        parent.clone(),
+                        None
+                    )?;
+                    current_bindings.push(Rc::new(sub_env));
+                },
+                Token::RightBrace => {
+                    // Ignore global braces (global env is constructed by Token::EOF)
+                    if parent.is_none() { continue; };
+                    return Ok(AstNode::Environment {
+                        name,
+                        bindings: current_bindings,
+                        parent,
+                        scope: EnvScope::LOCAL
+                    })
+                },
                 Token::Identifier(_) => todo!(),
                 Token::FullStop => {
-                    let temp = self.parse_accession(pos)?.into();
-                    self.bindings.push(temp);
+                    let node = self.parse_accession(pos)?;
+                    current_bindings.push(Rc::new(node));
                 },
                 Token::Number(_) => {
-                    let temp = self.parse_number(pos, &token)?.into();
-                    self.bindings.push(temp);
+                    let node = self.parse_number(pos, &token)?;
+                    current_bindings.push(Rc::new(node));
                 },
                 Token::StringLiteral(string) => {
-                    let temp = self.parse_string(&string)?.into();
-                    self.bindings.push(temp);
+                    let node = self.parse_string(&string)?;
+                    current_bindings.push(Rc::new(node));
                 },
                 Token::Boolean(Booleans::TRUE) =>
-                    self.bindings.push(AstNode::Boolean(true).into()),
+                    current_bindings.push(Rc::new(AstNode::Boolean(true))),
                 Token::Boolean(Booleans::FALSE) => 
-                    self.bindings.push(AstNode::Boolean(false).into()),
+                    current_bindings.push(Rc::new(AstNode::Boolean(false))),
                 Token::Keyword(Keywords::LET) => todo!(),
                 Token::Keyword(Keywords::INHERIT) => todo!(),
                 Token::Keyword(Keywords::FUN) => todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
                 Token::Operator(op) => {
-                    if let Some(prev_operand) = self.bindings.pop() {
-                        let temp = self.parse_operator(op, &prev_operand)?.into();
-                        self.bindings.push(temp);
+                    if let Some(prev_operand) = current_bindings.pop() {
+                        let node = self.parse_operator(op, &prev_operand)?;
+                        current_bindings.push(Rc::new(node));
                     } else {
                         return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
                     }
                 },
-                Token::EOF => (),
+                Token::EOF => {
+                    // Only valid in the global environment, every other occurrence is an error
+                    if parent.is_none() {
+                        return Ok(AstNode::Environment {
+                            name,
+                            bindings: current_bindings,
+                            parent,
+                            scope: EnvScope::GLOBAL
+                        });
+                    } else {
+                        return Err(ParserError::UnexpectedEOF(pos, self.line));
+                    }
+                },
             }
         }
-
-        Ok(AstNode::Environment {
-            name: None,
-            bindings: self.bindings.clone(),
-            parent: None,
-            scope: EnvScope::LOCAL
-        })
+        Err(ParserError::UnclosedEnvironment(self.line))
     }
 
     /// Parse an accession operation
@@ -246,7 +271,7 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Integer(5))], parent: None, scope: EnvScope::LOCAL });
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Integer(5))], parent: None, scope: EnvScope::GLOBAL });
     }
 
     #[test]
@@ -259,7 +284,7 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(5.0))], parent: None, scope: EnvScope::LOCAL });
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(5.0))], parent: None, scope: EnvScope::GLOBAL });
     }
 
     // TODO: Fix this test: Currently, it errors on meeting a FullStop as the first token (as it should!)
@@ -272,7 +297,35 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(0.5))], parent: None, scope: EnvScope::LOCAL });
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(0.5))], parent: None, scope: EnvScope::GLOBAL });
+    }
+
+    #[test]
+    fn nested_environments() {
+        let tokens = vec![
+        Token::LeftBrace,
+        Token::Number("1".into()),
+        Token::RightBrace,
+        Token::Number("2".into()),
+        Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        
+        if let AstNode::Environment { bindings, scope, .. } = ast {
+            assert_eq!(scope, EnvScope::GLOBAL);
+            assert_eq!(bindings.len(), 2);
+            // First binding should be a local environment containing 1
+            if let AstNode::Environment { bindings: sub_bindings, scope: sub_scope, .. } = &*bindings[0] {
+                assert_eq!(sub_scope, &EnvScope::LOCAL);
+                assert_eq!(sub_bindings.len(), 1);
+                assert_eq!(sub_bindings[0], Rc::new(AstNode::Integer(1)));
+            }
+            // Second binding should be the number 2
+            assert_eq!(&*bindings[1], &AstNode::Integer(2));
+        } else {
+            panic!("Expected Environment node");
+        }
     }
 
     // TODO: Fix this test once the error handling is fixed to be more informative

@@ -22,6 +22,8 @@ pub enum ParserError {
     BinaryOpWithNoRHS(usize, usize),            // (pos, line)
     WhitespaceInNumber(usize, usize, String),   // (pos, line, value)
     ParserLogicError(usize, usize),             // (pos, line)
+    UnexpectedEOF(usize, usize),                // (pos, line)
+    UnclosedEnvironment(usize),                 // (line)
 }
 
 impl Error for ParserError {}
@@ -46,6 +48,10 @@ impl fmt::Display for ParserError {
                 write!(f, "Parser error at source line {}, token position {}: Whitespace inside number '{}'", line, pos, valuestr),
             ParserError::ParserLogicError(pos, line) =>
                 write!(f, "Parser error at source line {}, token position {}: Internal parser logic error", line, pos),
+            ParserError::UnexpectedEOF(pos, line) =>
+                write!(f, "Parser error at source line {}, token position {}: Unexpected end of file", line, pos),
+            ParserError::UnclosedEnvironment(line) =>
+                write!(f, "Parser error at source line {}: Unclosed environment", line),
         }
     }
 }
