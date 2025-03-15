@@ -1,10 +1,10 @@
-use crate::symbols::{Booleans, Keywords, Operators};
+use crate::symbols::{Booleans, Keywords, Operators, OtherOperators, ReservedSymbols};
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
-    LeftBrace,
-    RightBrace,
+    LeftBrace(ReservedSymbols),
+    RightBrace(ReservedSymbols),
     Identifier(Rc<str>),
     Number(Rc<str>),
     StringLiteral(Rc<str>),
@@ -12,7 +12,8 @@ pub enum Token {
     Keyword(Keywords),
     Whitespace(Rc<str>),
     Operator(Operators),
-    FullStop,
+    LineTerminator(ReservedSymbols),
+    FullStop(OtherOperators),
     EOF,
 }
 
@@ -25,11 +26,12 @@ impl ToString for Token {
             Token::Identifier(i) => i.to_string(),
             Token::Keyword(k) => k.to_string(),
             Token::Operator(o) => o.to_string(),
-            Token::LeftBrace => "{".to_string(),
-            Token::RightBrace => "}".to_string(),
-            Token::FullStop => ".".to_string(),
+            Token::LeftBrace(b) => b.to_string(),
+            Token::RightBrace(b) => b.to_string(),
+            Token::FullStop(fs) => fs.to_string(),
             Token::Whitespace(w) => w.to_string(),
             Token::EOF => "end of file".to_string(),
+            Token::LineTerminator(lt) => lt.to_string(),
         }
     }
 }

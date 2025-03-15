@@ -13,10 +13,16 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 #### Major changes
 
 - The parser now handles the `let` keyword (but the implementation is temporarily bugged because of a lack of handling line terminators)
+- The lexer now parses line terminators as their own `LineTerminator` token enum variants
+- The lexed tokens `LeftBrace`, `RightBrace`, and `FullStop` now wrap appropriate symbol enums for consistency with other tokens
 
 #### Minor changes
 
 - Added new error types to `ParserError`
+- Added trait derivations for `ReservedSymbols` and the `ToString` trait implementation
+- Updated the documentation for all symbol enums
+- Updated lexer and parser implementations and tests to match new token variant type wrappings
+- Added new test to the lexer to cover the line terminator addition
 
 ### Version 0.5.4
 

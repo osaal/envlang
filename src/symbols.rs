@@ -9,7 +9,7 @@
 /// - `Arithmetic`: Arithmetic operators
 /// - `Other`: Other operators
 /// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operators {
     Arithmetic(ArithmeticOperators),
@@ -36,7 +36,7 @@ impl ToString for Operators {
 /// -  `MODULUS`: Remainder operator `%`
 /// -  `EXPONENTIATION`: Exponentiation operator `^`
 /// 
-/// The enum derives the traits `Debug`, `Clone`, and `PartialEq`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
 /// 
 /// [data types]: ../environment/enum.EnvValue.html
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,6 +68,8 @@ impl ToString for ArithmeticOperators {
 /// 
 /// - `ACCESSOR`: Environment accessor symbol `.`
 /// - `ASSIGNMENT`: Environment assignment symbol `=`
+/// 
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OtherOperators {
     ACCESSOR,       // .
@@ -107,8 +109,8 @@ pub enum GenericSymbols {
 /// - `FUNARGOPEN`: Start of function argument declaration symbol `[`
 /// - `FUNARGCLOSE`: End of function argument declaration symbol `]`
 /// 
-/// The enum derives the traits `Debug` and `Clone`.
-#[derive(Debug, Clone)]
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq` and `Eq`, and implements `ToString`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReservedSymbols {
     TERMINATOR,     // ;
     ENVOPEN,        // {
@@ -117,6 +119,20 @@ pub enum ReservedSymbols {
     INHERITCLOSE,   // )
     FUNARGOPEN,     // [
     FUNARGCLOSE,    // ]
+}
+
+impl ToString for ReservedSymbols {
+    fn to_string(&self) -> String {
+        match self {
+            ReservedSymbols::TERMINATOR => ";".to_string(),
+            ReservedSymbols::ENVOPEN => "{".to_string(),
+            ReservedSymbols::ENVCLOSE => "}".to_string(),
+            ReservedSymbols::INHERITOPEN => "(".to_string(),
+            ReservedSymbols::INHERITCLOSE => ")".to_string(),
+            ReservedSymbols::FUNARGOPEN => "[".to_string(),
+            ReservedSymbols::FUNARGCLOSE => "]".to_string(),
+        }
+    }
 }
 
 /// Types of string-related symbols
@@ -141,7 +157,7 @@ pub enum StringSymbols {
 /// -  `INHERIT`: Inheritance keyword `inherit`
 /// -  `FUN`: Function assignment keyword `fun`
 /// 
-/// The enum derives the traits `Debug` and `Clone`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Keywords {
     LET,            // let
@@ -166,7 +182,7 @@ impl ToString for Keywords {
 /// -  `TRUE`: Boolean value `true`
 /// -  `FALSE`: Boolean value `false`
 /// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Booleans {
     TRUE,           // true

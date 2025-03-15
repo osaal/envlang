@@ -2,7 +2,7 @@ mod astnode;
 mod error;
 
 use crate::lexer::Token;
-use crate::symbols::{Keywords, Booleans, Operators, OtherOperators};
+use crate::symbols::{Keywords, Booleans, Operators, OtherOperators, ReservedSymbols};
 use crate::environment::EnvScope;
 use std::rc::Rc;
 use std::borrow::Borrow;
@@ -85,7 +85,7 @@ impl Parser {
             self.debug_next_token();
             self.debug_token_tuple(pos, &token);
             match token.borrow() {
-                Token::LeftBrace => {
+                Token::LeftBrace(_) => {
                     // Ignore global braces (global env is constructed by Token::EOF)
                     if parent.is_none() { continue; };
                     let sub_env = self.parse_environment(
@@ -94,7 +94,7 @@ impl Parser {
                     )?;
                     current_bindings.push(Rc::new(sub_env));
                 },
-                Token::RightBrace => {
+                Token::RightBrace(_) => {
                     // Ignore global braces (global env is constructed by Token::EOF)
                     if parent.is_none() { continue; };
                     return Ok(AstNode::Environment {
@@ -105,7 +105,7 @@ impl Parser {
                     })
                 },
                 Token::Identifier(_) => todo!(),
-                Token::FullStop => {
+                Token::FullStop(_) => {
                     let node = self.parse_accession(pos)?;
                     current_bindings.push(Rc::new(node));
                 },
@@ -137,6 +137,7 @@ impl Parser {
                         return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
                     }
                 },
+                Token::LineTerminator(_) => todo!(),
                 Token::EOF => {
                     // Only valid in the global environment, every other occurrence is an error
                     if parent.is_none() {
@@ -220,12 +221,12 @@ impl Parser {
                 },
                 _ => {
                     // Syntax error, a full stop does not belong here!
-                    return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop.to_string()))
+                    return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop(OtherOperators::ACCESSOR).to_string()))
                 },
             }
         } else {
             // Syntax error, source code cannot start with a full stop!
-            return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop.to_string()))
+            return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop(OtherOperators::ACCESSOR).to_string()))
         }
     }
     
@@ -272,7 +273,7 @@ impl Parser {
         // Valid numbers start with a number or a full stop (if float)
         match start_token {
             Token::Number(num) => numstr.push_str(num),
-            Token::FullStop => numstr.push_str("0."),
+            Token::FullStop(_) => numstr.push_str("0."),
             _ => return Err(ParserError::NotANumber(start_pos, self.line, numstr)),
         }
         
@@ -283,7 +284,7 @@ impl Parser {
                     numstr.push_str(num);
                     self.next();
                 },
-                Token::FullStop => {
+                Token::FullStop(_) => {
                     // A float can only have one decimal point
                     if numstr.contains(".") {
                         return Err(ParserError::MalformedNumber(self.current, self.line, numstr));
@@ -342,7 +343,7 @@ mod tests {
     fn float() {
         let tokens = vec![
             Token::Number("5".into()),
-            Token::FullStop,
+            Token::FullStop(OtherOperators::ACCESSOR),
             Token::Number("0".into()),
             Token::EOF
         ];
@@ -355,7 +356,7 @@ mod tests {
     #[test]
     fn float_with_leading_decimal() {
         let tokens = vec![
-            Token::FullStop,
+            Token::FullStop(OtherOperators::ACCESSOR),
             Token::Number("5".into()),
             Token::EOF
         ];
@@ -367,9 +368,9 @@ mod tests {
     #[test]
     fn nested_environments() {
         let tokens = vec![
-        Token::LeftBrace,
+        Token::LeftBrace(ReservedSymbols::ENVOPEN),
         Token::Number("1".into()),
-        Token::RightBrace,
+        Token::RightBrace(ReservedSymbols::ENVCLOSE),
         Token::Number("2".into()),
         Token::EOF
         ];
@@ -419,9 +420,9 @@ mod tests {
     fn malformed_number() {
         let tokens = vec![
             Token::Number("5".into()),
-            Token::FullStop,
+            Token::FullStop(OtherOperators::ACCESSOR),
             Token::Number("0".into()),
-            Token::FullStop,
+            Token::FullStop(OtherOperators::ACCESSOR),
             Token::Number("0".into()),
             Token::EOF
         ];
@@ -446,7 +447,7 @@ mod tests {
     #[test]
     fn cannot_start_with_fullstop() {
         let tokens = vec![
-            Token::FullStop,
+            Token::FullStop(OtherOperators::ACCESSOR),
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);

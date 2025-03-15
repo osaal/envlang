@@ -26,7 +26,7 @@ mod error;
 pub use token::Token;
 pub use error::LexerError;
 
-use crate::symbols::{Keywords, Booleans, ArithmeticOperators, OtherOperators, Operators};
+use crate::symbols::{Keywords, Booleans, ArithmeticOperators, OtherOperators, Operators, ReservedSymbols};
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -136,9 +136,9 @@ impl Lexer {
         while let Some((pos, unicode_string)) = self.iterate() {
             match unicode_string.borrow() {
                 "{" =>
-                    tokens.push(Token::LeftBrace),
+                    tokens.push(Token::LeftBrace(ReservedSymbols::ENVOPEN)),
                 "}" =>
-                    tokens.push(Token::RightBrace),
+                    tokens.push(Token::RightBrace(ReservedSymbols::ENVCLOSE)),
                 "\"" =>
                     tokens.push(self.tokenize_string("\"", pos)?),
                 "'" =>
@@ -146,7 +146,9 @@ impl Lexer {
                 "+" | "-" | "*" | "/" | "%" | "^" | "=" =>
                     tokens.push(self.tokenize_operator(&unicode_string, pos)?),
                 "." =>
-                    tokens.push(Token::FullStop),
+                    tokens.push(Token::FullStop(OtherOperators::ACCESSOR)),
+                ";" =>
+                    tokens.push(Token::LineTerminator(ReservedSymbols::TERMINATOR)),
                 unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) =>
                     tokens.push(self.tokenize_number(unicode_string, pos)?),
                 unicode_string if unicode_string.chars().all(|c| c.is_alphabetic()) =>
@@ -353,14 +355,14 @@ mod tests {
     fn matches_left_brace() {
         let input = vec!["{".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::LeftBrace, Token::EOF]);
+        assert_eq!(tokens, vec![Token::LeftBrace(ReservedSymbols::ENVOPEN), Token::EOF]);
     }
 
     #[test]
     fn matches_right_brace() {
         let input = vec!["}".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::RightBrace, Token::EOF]);
+        assert_eq!(tokens, vec![Token::RightBrace(ReservedSymbols::ENVCLOSE), Token::EOF]);
     }
 
     #[test]
@@ -465,7 +467,7 @@ mod tests {
     fn matches_fullstop() {
         let input = vec![".".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::FullStop, Token::EOF]);
+        assert_eq!(tokens, vec![Token::FullStop(OtherOperators::ACCESSOR), Token::EOF]);
     }
 
     #[test]
@@ -529,6 +531,13 @@ mod tests {
         let input = vec!["fun".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
         assert_eq!(tokens, vec![Token::Keyword(Keywords::FUN), Token::EOF])
+    }
+
+    #[test]
+    fn matches_line_terminator() {
+        let input = vec![";".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::LineTerminator(ReservedSymbols::TERMINATOR), Token::EOF]);
     }
 
     // Complex token sequence tests
