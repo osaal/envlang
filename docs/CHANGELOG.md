@@ -13,6 +13,7 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 #### Major changes
 
 - The parser now handles the `let` keyword using the methods `parse_assignment` and `construct_let_statement` as well as the associated function `flatten_let_expression`
+- The parser now handles bare identifiers (this might change into an error!)
 - The lexer now parses line terminators as their own `LineTerminator` token enum variants
 - The lexed tokens `LeftBrace`, `RightBrace`, and `FullStop` now wrap appropriate symbol enums for consistency with other tokens
 

@@ -83,8 +83,10 @@ impl Parser {
                         scope: EnvScope::LOCAL
                     })
                 },
-                Token::Identifier(_) =>
-                    todo!(),
+                Token::Identifier(id) => {
+                    let node = self.parse_identifier(&id)?;
+                    current_bindings.push(Rc::new(node));
+                },
                 Token::FullStop(_) => {
                     let node = self.parse_accession(pos)?;
                     current_bindings.push(Rc::new(node));
@@ -217,6 +219,11 @@ impl Parser {
     /// Returns an AST node containing the string literal
     fn parse_string(&mut self, string: &Rc<str>) -> Result<AstNode, ParserError> { Ok(AstNode::String(string.clone())) }
 
+    /// Parse an identifier
+    /// 
+    /// Returns an AST node containing the identifier
+    fn parse_identifier(&mut self, id: &Rc<str>) -> Result<AstNode, ParserError> { Ok(AstNode::Identifier(id.clone())) }
+
     /// Parse a whitespace token
     /// 
     /// Increments the line counter if the whitespace is a new-line character
@@ -325,6 +332,7 @@ mod tests {
     use super::*;
     use crate::symbols::ReservedSymbols;
 
+    // Basic cases
     #[test]
     fn int() {
         let tokens = vec![
@@ -349,6 +357,52 @@ mod tests {
         assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(5.0))], parent: None, scope: EnvScope::GLOBAL });
     }
 
+    #[test]
+    fn string_literal() {
+        let tokens = vec![
+            Token::StringLiteral("Hello, world!".into()),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::String("Hello, world!".into()))], parent: None, scope: EnvScope::GLOBAL });
+    }
+
+    #[test]
+    fn identifier() {
+        let tokens = vec![
+            Token::Identifier("x".into()),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Identifier("x".into()))], parent: None, scope: EnvScope::GLOBAL });
+    }
+
+    #[test]
+    fn assignment() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "x".into(),
+                value: Rc::new(AstNode::Integer(5))
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
+    }
+
+    // Complex cases
     // TODO: Fix this test: Currently, it errors on meeting a FullStop as the first token (as it should!)
     #[test]
     fn float_with_leading_decimal() {
@@ -360,6 +414,29 @@ mod tests {
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
         assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(0.5))], parent: None, scope: EnvScope::GLOBAL });
+    }
+
+    #[test]
+    fn assignment_with_identifier() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Identifier("y".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "x".into(),
+                value: Rc::new(AstNode::Identifier("y".into()))
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
     }
 
     #[test]
@@ -391,28 +468,38 @@ mod tests {
     }
 
     #[test]
-    fn valid_assignment() {
+    fn environment_with_assignment() {
         let tokens = vec![
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
             Token::Keyword(Keywords::LET),
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
             Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment {
-            name: None,
-            bindings: vec![Rc::new(AstNode::Let {
-                name: "x".into(),
-                value: Rc::new(AstNode::Integer(5))
-            })],
-            parent: None,
-            scope: EnvScope::GLOBAL
-        });
+        
+        if let AstNode::Environment { bindings, scope, .. } = ast {
+            assert_eq!(scope, EnvScope::GLOBAL);
+            assert_eq!(bindings.len(), 1);
+            // First binding should be a local environment containing the assignment
+            if let AstNode::Environment { bindings: sub_bindings, scope: sub_scope, .. } = &*bindings[0] {
+                assert_eq!(sub_scope, &EnvScope::LOCAL);
+                assert_eq!(sub_bindings.len(), 1);
+                assert_eq!(sub_bindings[0], Rc::new(AstNode::Let {
+                    name: "x".into(),
+                    value: Rc::new(AstNode::Integer(5))
+                }));
+            }
+        } else {
+            panic!("Expected Environment node");
+        }
     }
 
+    // Error cases
     // TODO: Fix this test once the error handling is fixed to be more informative
     #[test]
     fn malformed_number() {
