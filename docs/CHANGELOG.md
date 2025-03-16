@@ -8,6 +8,18 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.8
+
+#### Major changes
+
+- Lexer now handles parentheses as well as commas in preparation for parsing inheritance arguments
+
+#### Minor changes
+
+- Added lexer tests for parentheses and commas
+- Added getters for all fields in `AstNode` environments
+- Added error types for inheritance
+
 ### Version 0.5.7
 
 #### Major changes

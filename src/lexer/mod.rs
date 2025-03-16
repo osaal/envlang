@@ -137,6 +137,10 @@ impl Lexer {
                     tokens.push(Token::LeftBrace(ReservedSymbols::ENVOPEN)),
                 "}" =>
                     tokens.push(Token::RightBrace(ReservedSymbols::ENVCLOSE)),
+                "(" =>
+                    tokens.push(Token::LeftParen(ReservedSymbols::INHERITOPEN)),
+                ")" =>
+                    tokens.push(Token::RightParen(ReservedSymbols::INHERITCLOSE)),
                 "\"" =>
                     tokens.push(self.tokenize_string("\"", pos)?),
                 "'" =>
@@ -145,6 +149,8 @@ impl Lexer {
                     tokens.push(self.tokenize_operator(&unicode_string, pos)?),
                 "." =>
                     tokens.push(Token::FullStop(OtherOperators::ACCESSOR)),
+                "," =>
+                    tokens.push(Token::Comma),
                 ";" =>
                     tokens.push(Token::LineTerminator(ReservedSymbols::TERMINATOR)),
                 unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) =>
@@ -347,6 +353,27 @@ mod tests {
         let input = vec!["}".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
         assert_eq!(tokens, vec![Token::RightBrace(ReservedSymbols::ENVCLOSE), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_left_parenthesis() {
+        let input = vec!["(".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::LeftParen(ReservedSymbols::INHERITOPEN), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_right_parenthesis() {
+        let input = vec![")".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::RightParen(ReservedSymbols::INHERITCLOSE), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_comma() {
+        let input = vec![",".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Comma, Token::EOF]);
     }
 
     #[test]

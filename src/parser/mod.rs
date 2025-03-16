@@ -144,7 +144,7 @@ impl Parser {
                     todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
-                Token::FullStop(op) => { // NYI
+                Token::FullStop(op) => {
                     let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.pop()
                     } else {
@@ -202,6 +202,7 @@ impl Parser {
                         return Err(ParserError::UnexpectedEOF(pos, self.line));
                     }
                 },
+                _ => (),
             }
         }
         Err(ParserError::UnclosedEnvironment(self.line))

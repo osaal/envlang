@@ -96,6 +96,30 @@ impl AstNode {
             _ => None,
         }
     }
+
+    // Get the name of an environment
+    pub fn get_name(&self) -> Option<Rc<str>> {
+        match self {
+            AstNode::Environment { name, .. } => name.clone(),
+            _ => None,
+        }
+    }
+
+    // Get the parent of an environment
+    pub fn get_parent(&self) -> Option<Rc<AstNode>> {
+        match self {
+            AstNode::Environment { parent, .. } => parent.clone(),
+            _ => None,
+        }
+    }
+
+    // Get the scope of an environment
+    pub fn get_scope(&self) -> Option<EnvScope> {
+        match self {
+            AstNode::Environment { scope, .. } => Some(scope.clone()),
+            _ => None, // This should never occur!
+        }
+    }
 }
 
 #[cfg(test)]

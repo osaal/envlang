@@ -5,6 +5,8 @@ use std::rc::Rc;
 pub enum Token {
     LeftBrace(ReservedSymbols),
     RightBrace(ReservedSymbols),
+    LeftParen(ReservedSymbols),
+    RightParen(ReservedSymbols),
     Identifier(Rc<str>),
     Number(Rc<str>),
     StringLiteral(Rc<str>),
@@ -14,6 +16,7 @@ pub enum Token {
     Operator(Operators),
     LineTerminator(ReservedSymbols),
     FullStop(OtherOperators),
+    Comma,
     EOF,
 }
 
@@ -26,12 +29,15 @@ impl ToString for Token {
             Token::Identifier(i) => i.to_string(),
             Token::Keyword(k) => k.to_string(),
             Token::Operator(o) => o.to_string(),
-            Token::LeftBrace(b) => b.to_string(),
-            Token::RightBrace(b) => b.to_string(),
+            Token::LeftBrace(b)
+            | Token::RightBrace(b)
+            | Token::LeftParen(b)
+            | Token::RightParen(b) => b.to_string(),
             Token::FullStop(fs) => fs.to_string(),
             Token::Whitespace(w) => w.to_string(),
             Token::EOF => "end of file".to_string(),
             Token::LineTerminator(lt) => lt.to_string(),
+            Token::Comma => ",".to_string(),
         }
     }
 }
