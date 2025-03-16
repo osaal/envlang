@@ -28,6 +28,8 @@ pub enum ParserError {
     MissingAssignmentOp(usize, usize),          // (pos, line)
     InvalidAssignmentOp(usize, usize, String),  // (pos, line, value)
     EmptyEnv(usize, usize, String),             // (pos, line, value)
+    InvalidAccessionTarget(usize, usize, String), // (pos, line, value)
+    InvalidAccessionSource(usize, usize, String), // (pos, line)
 }
 
 impl Error for ParserError {}
@@ -64,6 +66,10 @@ impl fmt::Display for ParserError {
                 write!(f, "Parser error at source line {}, token position {}: Expected assignment operator '=', not '{}'", line, pos, valuestr),
             ParserError::EmptyEnv(pos, line, valuestr) =>
                 write!(f, "Parser error at source line {}, token position {}: Empty environment '{}'", line, pos, valuestr),
+            ParserError::InvalidAccessionTarget(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Invalid accession target '{}'", line, pos, valuestr),
+            ParserError::InvalidAccessionSource(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Invalid accession source '{}'", line, pos, valuestr),
         }
     }
 }

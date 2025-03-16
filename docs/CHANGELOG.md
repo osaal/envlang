@@ -8,6 +8,23 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.7
+
+#### Major changes
+
+- The parser now parses accession operations of the type `x.y`. Accessions can be done on both identifiers and environments, as long as the accession target is an identifier.
+- Removed `bindings` from the `Parser` struct since they became unnecessary
+- Removed old implementation of `parse_accessor()` due to being superceded by `parse_operator()`
+- The operator parser now calls either a generic operator parsing method or an accession parsing method, depending on the input `Token`
+- Moved the parsing of full-stops/accessor operators to a later spot in the environment parser, to allow for full-stops-as-decimal-points to take precedence when in valid contexts
+
+#### Minor changes
+
+- Added error types for `ParserError`
+- Corrected comma usage in `parse_environment`
+- Removed the old test case for floats with leading decimals, as the parser currently does not support testing these outside of assignment contexts
+- Corrected tests to match correct error types
+
 ### Version 0.5.6
 
 #### Major changes

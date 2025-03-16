@@ -18,7 +18,6 @@ enum ParseContext {
 
 pub struct Parser {
     tokens: Vec<Token>,
-    bindings: Vec<Rc<AstNode>>,
     current: usize,
     line: usize,
 }
@@ -27,7 +26,6 @@ impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens,
-            bindings: Vec::new(),
             current: 0,
             line: 1
         }
@@ -112,12 +110,6 @@ impl Parser {
                         bindings.push(Rc::new(node));
                     }
                 },
-                Token::FullStop(_) => { // NYI
-                    let node: AstNode = self.parse_accession(pos)?;
-                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
-                        bindings.push(Rc::new(node));
-                    }
-                },
                 Token::Number(_) => {
                     let node: AstNode = self.parse_number(pos, &token)?;
                     if let AstNode::Environment { ref mut bindings, .. } = current_env {
@@ -130,14 +122,16 @@ impl Parser {
                         bindings.push(Rc::new(node));
                     }
                 },
-                Token::Boolean(Booleans::TRUE) =>
+                Token::Boolean(Booleans::TRUE) => {
                     if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.push(Rc::new(AstNode::Boolean(true)));
                     }
-                Token::Boolean(Booleans::FALSE) => 
+                },
+                Token::Boolean(Booleans::FALSE) => {
                     if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.push(Rc::new(AstNode::Boolean(false)));
                     }
+                },
                 Token::Keyword(Keywords::LET) => {
                     let node: AstNode = self.parse_assignment(parent.clone())?;
                     if let AstNode::Environment { ref mut bindings, .. } = current_env {
@@ -150,6 +144,22 @@ impl Parser {
                     todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
+                Token::FullStop(op) => { // NYI
+                    let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.pop()
+                    } else {
+                        None
+                    };
+                    if let Some(prev_operand) = prev_operand {
+                        let env_rc: Rc<AstNode> = Rc::new(current_env.clone());
+                        let node: AstNode = self.parse_operator(Some(env_rc), &Operators::Other(op.clone()), &prev_operand)?;
+                        if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                            bindings.push(Rc::new(node));
+                        }
+                    } else {
+                        return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
+                    }
+                },
                 Token::Operator(op) => {
                     let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.pop()
@@ -240,36 +250,6 @@ impl Parser {
         Err(ParserError::ParserLogicError(self.current, self.line))
     }
     
-    /// Parse an accession operation
-    /// 
-    /// NOT YET IMPLEMENTED
-    /// 
-    /// Returns an AST node representing the accession operation
-    /// 
-    /// # Errors
-    /// Returns an error if the accession operation is invalid
-    fn parse_accession(&mut self, pos: usize) -> Result<AstNode, ParserError> {
-        if let Some(prev) = self.bindings.pop() {
-            match prev.borrow() {
-                AstNode::Integer(_) | AstNode::Float(_) => {
-                    // We should have caught the FullStop in parse_number()
-                    return Err(ParserError::ParserLogicError(pos, self.line))
-                },
-                AstNode::Identifier(_) | AstNode::Environment { .. } => {
-                    // TODO: Implement accession
-                    return Ok(AstNode::BinaryOp {
-                        left: prev.clone(),
-                        operator: Operators::Other(OtherOperators::ACCESSOR),
-                        right: AstNode::Integer(5).into()
-                    })
-                },
-                _ => return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop(OtherOperators::ACCESSOR).to_string())),
-            }
-        } else {
-            return Err(ParserError::InvalidOperation(pos, self.line, Token::FullStop(OtherOperators::ACCESSOR).to_string()))
-        }
-    }
-    
     /// Parse a string literal
     /// 
     /// Returns an AST node containing the string literal
@@ -291,15 +271,35 @@ impl Parser {
     /// 
     /// Parses a binary operation and returns an AST node containing the operation
     /// 
-    /// The RHS is flattened into a single node if it contains only one binding, otherwise it is returned as an environment
+    /// Wraps around separate functions for groups of binary operations
     /// 
     /// # Errors
-    /// Returns an error if the method hits EOF while parsing the rhs of the operation
+    /// Method does not error on its own, but carries over errors from its sub-methods.
     fn parse_operator(&mut self, parent_env: Option<Rc<AstNode>>, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
-        if let Some(_) = self.peek() {
-            // We need the parent environment to construct the next environment
-            let next_node: AstNode = self.parse_environment(parent_env, None, ParseContext::Operation)?;
+        match op {
+            Operators::Other(OtherOperators::ACCESSOR) => {
+                return Ok(self.parse_accessor_op(op, prev)?)
+            },
+            _ => {
+                return Ok(self.parse_generic_op(parent_env, op, prev)?)
+            },
+        }
+    }
 
+    /// Parse a generic binary operation
+    /// 
+    /// Parses operations such as arithmetics and returns an AST node containing the operation
+    /// 
+    /// Single-item RHS environments will be flattened into the items they represent
+    /// 
+    /// # Errors
+    /// Errors if the file ends while in the function
+    /// 
+    /// All other errors are carried from `parse_environment`
+    fn parse_generic_op(&mut self, parent_env: Option<Rc<AstNode>>, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
+        if let Some(_) = self.peek() {
+            let next_node: AstNode = self.parse_environment(parent_env, None, ParseContext::Operation)?;
+        
             // Flatten single-item environments into a single node
             if let Some(bindings) = next_node.get_bindings() {
                 if bindings.len() == 1 {
@@ -310,7 +310,6 @@ impl Parser {
                     });
                 }
             }
-
             // Return multi-item rhs environments as is
             return Ok(AstNode::BinaryOp {
                 left: prev.clone(),
@@ -321,7 +320,40 @@ impl Parser {
             return Err(ParserError::UnexpectedEOF(self.current, self.line));
         }
     }
+    
+    /// Parse an accession operation
+    /// 
+    /// Parses the accession operation `x.y` and returns an AST node representing the operation
+    /// 
+    /// # Errors
+    /// Errors occur if the RHS is not an identifier or environment, if the LHS is not an identifier, or if the file unexpectedly ends whilst in the method.
+    fn parse_accessor_op(&mut self, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
+        // Exit early if the operator is not an accessor
+        match op {
+            Operators::Other(OtherOperators::ACCESSOR) => (),
+            _ => return Err(ParserError::ParserLogicError(self.current, self.line))
+        }
 
+        match prev.borrow() {
+            AstNode::Identifier(_) | AstNode::Environment{ .. } => {
+                if let Some((pos, token)) = self.advance() {
+                    match token.borrow() {
+                        Token::Identifier(id) => {
+                            return Ok(AstNode::BinaryOp {
+                                left: prev.clone(),
+                                operator: op.clone(),
+                                right: Rc::new(AstNode::Identifier(id.clone()))
+                            });
+                        },
+                        _ => return Err(ParserError::InvalidAccessionTarget(pos, self.line, token.to_string()))
+                    }
+                }
+                return Err(ParserError::UnexpectedEOF(self.current, self.line));
+            },
+            _ => return Err(ParserError::InvalidAccessionSource(self.current, self.line, prev.to_string())),
+        }
+    }
+    
     /// Parse a number-like type
     /// 
     /// Parses a number or a float and returns an AST node containing the number
@@ -495,20 +527,25 @@ mod tests {
         })], parent: None, scope: EnvScope::GLOBAL });
     }
 
-    // Complex cases
-    // TODO: Fix this test: Currently, it errors on meeting a FullStop as the first token (as it should!)
     #[test]
-    fn float_with_leading_decimal() {
+    fn accession() {
         let tokens = vec![
+            Token::Identifier("x".into()),
             Token::FullStop(OtherOperators::ACCESSOR),
-            Token::Number("5".into()),
-            Token::EOF
+            Token::Identifier("y".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF,
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(0.5))], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::BinaryOp {
+            left: Rc::new(AstNode::Identifier("x".into())),
+            operator: Operators::Other(OtherOperators::ACCESSOR),
+            right: Rc::new(AstNode::Identifier("y".into())),
+        })], parent: None, scope: EnvScope::GLOBAL });
     }
 
+    // Complex cases
     #[test]
     fn assignment_with_identifier() {
         let tokens = vec![
@@ -670,6 +707,6 @@ mod tests {
         let mut parser = Parser::new(tokens);
         let ast = parser.parse();
         assert!(ast.is_err());
-        assert_eq!(ast.unwrap_err(), ParserError::InvalidOperation(0, 1, ".".to_string()))
+        assert_eq!(ast.unwrap_err(), ParserError::BinaryOpWithNoLHS(0, 1))
     }
 }
