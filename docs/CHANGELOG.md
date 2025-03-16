@@ -20,6 +20,7 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 - Added documentation to `construct_let_statement()`, `parse_operator()` and `parse_number()`
 - Added tests for operator and environment parsing
+- Fixed issue where number parsing would error with whitespace after the number, when it should just finish parsing and continue
 
 ### Version 0.5.5
 

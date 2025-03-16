@@ -150,7 +150,7 @@ impl Parser {
                     todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
-                Token::Operator(op) => { // NYI
+                Token::Operator(op) => {
                     let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.pop()
                     } else {
@@ -327,7 +327,7 @@ impl Parser {
     /// Parses a number or a float and returns an AST node containing the number
     /// 
     /// # Errors
-    /// Returns an error if the number is malformed through multiple decimal points, contains whitespace, or is not a number
+    /// Returns an error if the number is malformed through multiple decimal points, or if the starting token is not a number or fullstop
     fn parse_number(&mut self, start_pos: usize, start_token: &Token) -> Result<AstNode, ParserError> {
         let mut numstr: String = String::new();
         // Valid numbers start with a number or a full stop (if float)
@@ -350,7 +350,6 @@ impl Parser {
                     numstr.push_str(".");
                     self.next();
                 },
-                Token::Whitespace(_) => return Err(ParserError::WhitespaceInNumber(self.current, self.line, numstr)),
                 _ => break,
             }
         }
@@ -601,6 +600,26 @@ mod tests {
             Token::LeftBrace(ReservedSymbols::ENVOPEN),
             Token::Number("3".into()),
             Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::BinaryOp {
+            left: Rc::new(AstNode::Integer(5)),
+            operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+            right: Rc::new(AstNode::Integer(3))
+        })], parent: None, scope: EnvScope::GLOBAL });
+    }
+
+    #[test]
+    fn operation_with_extra_whitespace() {
+        let tokens = vec![
+            Token::Number("5".into()),
+            Token::Whitespace(" ".into()),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
+            Token::Whitespace("\n".into()),
+            Token::Number("3".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
