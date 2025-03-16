@@ -8,6 +8,19 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.6
+
+#### Major changes
+
+- The environment parser now takes a `ParseContext` enum. Currently, the enum represents either `Normal` or `Operation` context, to variably conduct parsing of other elements.
+- The environment parser now constructs the `Environment` AST node before matching tokens, to ensure that its parentage can be relayed to sub-methods when necessary.
+- The parser now handles binary operators. Note, that the parser does not check the validity of the operation, only the syntax itself.
+
+#### Minor changes
+
+- Added documentation to `construct_let_statement()`, `parse_operator()` and `parse_number()`
+- Added tests for operator and environment parsing
+
 ### Version 0.5.5
 
 #### Major changes

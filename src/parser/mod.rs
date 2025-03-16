@@ -10,6 +10,12 @@ use std::borrow::Borrow;
 pub use astnode::AstNode;
 pub use error::ParserError;
 
+#[derive(Debug, PartialEq, Clone)]
+enum ParseContext {
+    Normal,
+    Operation,
+}
+
 pub struct Parser {
     tokens: Vec<Token>,
     bindings: Vec<Rc<AstNode>>,
@@ -57,7 +63,7 @@ impl Parser {
     /// 
     /// # Errors
     /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
-    pub fn parse(&mut self) -> Result<AstNode, ParserError> { self.parse_environment(None, None) }
+    pub fn parse(&mut self) -> Result<AstNode, ParserError> { self.parse_environment(None, None, ParseContext::Normal) }
 
     /// Parse an environment
     /// 
@@ -65,81 +71,123 @@ impl Parser {
     /// 
     /// # Errors
     /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
-    fn parse_environment(&mut self, parent: Option<Rc<AstNode>>, name: Option<Rc<str>>) -> Result<AstNode, ParserError> {
-        let mut current_bindings = Vec::new();
+    fn parse_environment(&mut self, parent: Option<Rc<AstNode>>, name: Option<Rc<str>>, context: ParseContext) -> Result<AstNode, ParserError> {
+        // We create a temporary environment to handle parentage
+        let mut current_env: AstNode = AstNode::Environment {
+            name: name.clone(),
+            bindings: Vec::new(),
+            parent: parent.clone(),
+            scope: if parent.is_none() { EnvScope::GLOBAL } else { EnvScope::LOCAL }
+        };
+
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::LeftBrace(_) => {
-                    if parent.is_none() { continue; }; // Global env is constructed by Token::EOF
-                    let sub_env = self.parse_environment(parent.clone(), None)?;
-                    current_bindings.push(Rc::new(sub_env));
+                    // Global env is constructed by Token::EOF
+                    if parent.is_none() { continue; };
+
+                    // Ignore left brace in operation context
+                    if context == ParseContext::Operation {
+                        continue; 
+                    }
+                    let sub_env: AstNode = self.parse_environment(
+                        Some(Rc::new(current_env.clone())),
+                        None,
+                        ParseContext::Normal
+                    )?;
+
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(sub_env));
+                    }
                 },
                 Token::RightBrace(_) => {
-                    if parent.is_none() { continue; }; // Global env is constructed by Token::EOF
-                    return Ok(AstNode::Environment {
-                        name,
-                        bindings: current_bindings,
-                        parent,
-                        scope: EnvScope::LOCAL
-                    })
+                    // Global env is constructed by Token::EOF
+                    if parent.is_none() { continue; };
+                    
+                    return Ok(current_env);
                 },
                 Token::Identifier(id) => {
-                    let node = self.parse_identifier(&id)?;
-                    current_bindings.push(Rc::new(node));
+                    let node: AstNode = self.parse_identifier(&id)?;
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(node));
+                    }
                 },
-                Token::FullStop(_) => {
-                    let node = self.parse_accession(pos)?;
-                    current_bindings.push(Rc::new(node));
+                Token::FullStop(_) => { // NYI
+                    let node: AstNode = self.parse_accession(pos)?;
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(node));
+                    }
                 },
                 Token::Number(_) => {
-                    let node = self.parse_number(pos, &token)?;
-                    current_bindings.push(Rc::new(node));
+                    let node: AstNode = self.parse_number(pos, &token)?;
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(node));
+                    }
                 },
                 Token::StringLiteral(string) => {
-                    let node = self.parse_string(&string)?;
-                    current_bindings.push(Rc::new(node));
+                    let node: AstNode = self.parse_string(&string)?;
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(node));
+                    }
                 },
                 Token::Boolean(Booleans::TRUE) =>
-                    current_bindings.push(Rc::new(AstNode::Boolean(true))),
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(AstNode::Boolean(true)));
+                    }
                 Token::Boolean(Booleans::FALSE) => 
-                    current_bindings.push(Rc::new(AstNode::Boolean(false))),
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(AstNode::Boolean(false)));
+                    }
                 Token::Keyword(Keywords::LET) => {
-                    let node = self.parse_assignment(parent.clone())?;
-                    current_bindings.push(Rc::new(node));
+                    let node: AstNode = self.parse_assignment(parent.clone())?;
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(node));
+                    }
                 },
-                Token::Keyword(Keywords::INHERIT) =>
+                Token::Keyword(Keywords::INHERIT) => // NYI
                     todo!(),
-                Token::Keyword(Keywords::FUN) =>
+                Token::Keyword(Keywords::FUN) => // NYI
                     todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
-                Token::Operator(op) => {
-                    if let Some(prev_operand) = current_bindings.pop() {
-                        let node = self.parse_operator(op, &prev_operand)?;
-                        current_bindings.push(Rc::new(node));
+                Token::Operator(op) => { // NYI
+                    let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.pop()
+                    } else {
+                        None
+                    };
+                    if let Some(prev_operand) = prev_operand {
+                        let env_rc: Rc<AstNode> = Rc::new(current_env.clone());
+                        let node: AstNode = self.parse_operator(Some(env_rc), op, &prev_operand)?;
+                        if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                            bindings.push(Rc::new(node));
+                        }
                     } else {
                         return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
                     }
                 },
                 Token::LineTerminator(_) => {
-                    if name.is_some() {
-                        return Ok(AstNode::Environment {
-                            name,
-                            bindings: current_bindings,
-                            parent,
-                            scope: EnvScope::LOCAL
-                        });
+                    match context {
+                        ParseContext::Operation => {
+                            // Return the right-hand side of the operation
+                            if let AstNode::Environment { ref bindings, .. } = current_env {
+                                if bindings.len() == 1 {
+                                    return Ok((*bindings[0]).clone());
+                                }
+                            }
+                        },
+                        ParseContext::Normal => {
+                            // Return the current environment if it is named
+                            if name.is_some() {
+                                return Ok(current_env.clone());
+                            }
+                        }
                     }
                 },
                 Token::EOF => {
                     // Only valid in the global environment, every other occurrence is an error
                     if parent.is_none() {
-                        return Ok(AstNode::Environment {
-                            name,
-                            bindings: current_bindings,
-                            parent,
-                            scope: EnvScope::GLOBAL
-                        });
+                        return Ok(current_env.clone());
                     } else {
                         return Err(ParserError::UnexpectedEOF(pos, self.line));
                     }
@@ -166,13 +214,21 @@ impl Parser {
         Err(ParserError::ParserLogicError(self.current, self.line))
     }
 
+    /// Construct a let statement
+    /// 
+    /// Returns an AST node representing the let statement
+    /// 
+    /// # Errors
+    /// Returns an error if the let statement is using a non-assignment operator, or if the assignment operator is missing
+    /// 
+    /// Also errors if the parser hits EOF while constructing the let statement
     fn construct_let_statement(&mut self, parent_env: &Option<Rc<AstNode>>, id: &Rc<str>) -> Result<AstNode, ParserError> {
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
                 Token::Operator(op) => {
                     if *op == Operators::Other(OtherOperators::ASSIGNMENT) {
-                        let expr = self.parse_environment(parent_env.clone(), Some(id.clone()))?;
+                        let expr: AstNode = self.parse_environment(parent_env.clone(), Some(id.clone()), ParseContext::Normal)?;
                         return flatten_let_expression(id, expr, pos, self.line, &token);
                     } else {
                         return Err(ParserError::InvalidAssignmentOp(pos, self.line, token.to_string()));
@@ -233,27 +289,47 @@ impl Parser {
 
     /// Parse an operator
     /// 
-    /// NOT YET IMPLEMENTED
-    fn parse_operator(&mut self, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
-        // Here are (some) valid operations that need to be covered:
-        // 1. String + {string, identifier representing string} (concatenation)
-        // 2. Integer +-*^% {integer, float} (convert LHS to float if RHS is float)
-        // 3. Integer / {integer, float} (convert LHS to float in all cases)
-        // 4. Float +-*^%/ {integer, float} (no conversion needed)
-        // 5. Identifier = {expression, left brace, identifier} (parse RHS and add to identifier)
-        // 6. Identifier.identifier (accession)
+    /// Parses a binary operation and returns an AST node containing the operation
+    /// 
+    /// The RHS is flattened into a single node if it contains only one binding, otherwise it is returned as an environment
+    /// 
+    /// # Errors
+    /// Returns an error if the method hits EOF while parsing the rhs of the operation
+    fn parse_operator(&mut self, parent_env: Option<Rc<AstNode>>, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
+        if let Some(_) = self.peek() {
+            // We need the parent environment to construct the next environment
+            let next_node: AstNode = self.parse_environment(parent_env, None, ParseContext::Operation)?;
 
-        // TEMP: Remove once build is secured
-        Ok(AstNode::BinaryOp {
-            left: prev.clone(),
-            operator: op.clone(),
-            right: AstNode::Integer(5).into(),
-        })
+            // Flatten single-item environments into a single node
+            if let Some(bindings) = next_node.get_bindings() {
+                if bindings.len() == 1 {
+                    return Ok(AstNode::BinaryOp {
+                        left: prev.clone(),
+                        operator: op.clone(),
+                        right: bindings[0].clone()
+                    });
+                }
+            }
+
+            // Return multi-item rhs environments as is
+            return Ok(AstNode::BinaryOp {
+                left: prev.clone(),
+                operator: op.clone(),
+                right: Rc::new(next_node)
+            });
+        } else {
+            return Err(ParserError::UnexpectedEOF(self.current, self.line));
+        }
     }
 
     /// Parse a number-like type
+    /// 
+    /// Parses a number or a float and returns an AST node containing the number
+    /// 
+    /// # Errors
+    /// Returns an error if the number is malformed through multiple decimal points, contains whitespace, or is not a number
     fn parse_number(&mut self, start_pos: usize, start_token: &Token) -> Result<AstNode, ParserError> {
-        let mut numstr = String::new();
+        let mut numstr: String = String::new();
         // Valid numbers start with a number or a full stop (if float)
         match start_token {
             Token::Number(num) => numstr.push_str(num),
@@ -330,7 +406,7 @@ fn flatten_let_expression(id: &Rc<str>, expr: AstNode, pos: usize, line: usize, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::symbols::ReservedSymbols;
+    use crate::symbols::{ReservedSymbols, Operators, ArithmeticOperators};
 
     // Basic cases
     #[test]
@@ -400,6 +476,24 @@ mod tests {
             parent: None,
             scope: EnvScope::GLOBAL
         });
+    }
+    
+    #[test]
+    fn operation() {
+        let tokens = vec![
+            Token::Number("5".into()),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
+            Token::Number("3".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::BinaryOp {
+            left: Rc::new(AstNode::Integer(5)),
+            operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+            right: Rc::new(AstNode::Integer(3))
+        })], parent: None, scope: EnvScope::GLOBAL });
     }
 
     // Complex cases
@@ -497,6 +591,25 @@ mod tests {
         } else {
             panic!("Expected Environment node");
         }
+    }
+
+    #[test]
+    fn nested_operation() {
+        let tokens = vec![
+            Token::Number("5".into()),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Number("3".into()),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::BinaryOp {
+            left: Rc::new(AstNode::Integer(5)),
+            operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+            right: Rc::new(AstNode::Integer(3))
+        })], parent: None, scope: EnvScope::GLOBAL });
     }
 
     // Error cases
