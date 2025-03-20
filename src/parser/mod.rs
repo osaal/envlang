@@ -2,7 +2,7 @@ mod astnode;
 mod error;
 
 use crate::lexer::Token;
-use crate::symbols::{Keywords, Booleans, Operators, OtherOperators};
+use crate::symbols::{Keywords, Booleans, Operators, ArithmeticOperators, OtherOperators};
 use crate::environment::EnvScope;
 use std::rc::Rc;
 use std::borrow::Borrow;
@@ -139,9 +139,11 @@ impl Parser {
                     }
                 },
                 Token::Keyword(Keywords::INHERIT) => // NYI
-                    todo!(),
+                    todo!(),    // Inherit is not valid here, as we are inside a new environment at the first position
+                                // Inherit is only valid after a let-identifier or a function-argument-clause
                 Token::Keyword(Keywords::FUN) => // NYI
-                    todo!(),
+                    todo!(),    // Fun is not valid here, as we are inside a new environment at the first position
+                                // Fun is only valid after a let-statement (before the identifier)
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
                 Token::FullStop(op) => {
@@ -237,6 +239,14 @@ impl Parser {
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::Keyword(Keywords::INHERIT) => {
+                    if let Ok(inheritance) = self.parse_inherit_clause() {
+                        // Where do we put the inheritance clause?
+                        // It should be in an AstNode::Let, but that doesn't exist here
+                        // as it is created by the next arm!
+                    }
+                    continue;
+                },
                 Token::Operator(op) => {
                     if *op == Operators::Other(OtherOperators::ASSIGNMENT) {
                         let expr: AstNode = self.parse_environment(parent_env.clone(), Some(id.clone()), ParseContext::Normal)?;
@@ -249,6 +259,56 @@ impl Parser {
             }
         }
         Err(ParserError::ParserLogicError(self.current, self.line))
+    }
+
+    fn parse_inherit_clause(&mut self) -> Result<AstNode, ParserError> {
+        let mut inheritance_arg = AstNode::Inherit { names: Some(Vec::new()) };
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::LeftParen(_) => {
+                    // If the element vector is non-empty, this represents a syntax error
+                    if let Some(names) = inheritance_arg.get_inherited_names() {
+                        if !names.is_empty() {
+                            return Err(ParserError::DoubleInheritanceParen(pos, self.line, token.to_string()));
+                        }
+                    }
+                    continue;
+                },
+                Token::RightParen(_) => {
+                    return Ok(inheritance_arg);
+                },
+                Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)) => {
+                    if let Some(names) = inheritance_arg.get_inherited_names() {
+                        if !names.is_empty() {
+                            return Err(ParserError::WildcardAndElements(pos, self.line, token.to_string()));
+                        }
+                    }
+                    if let AstNode::Inherit { ref mut names } = inheritance_arg {
+                        *names = None;
+                    }
+                }
+                Token::Identifier(id) => {
+                    if let Some(names) = inheritance_arg.get_inherited_names() {
+                        if !names.is_empty() {
+                            return Err(ParserError::WildcardAndElements(pos, self.line, token.to_string()));
+                        }
+
+                    }
+                    inheritance_arg.push_inherited_name(id.clone())
+                        // This is safe because inheritance_arg is defined to be AstNode::Inherit
+                        .expect("inheritance_arg was created as Inherit");
+                    continue;
+                },
+                Token::Comma => {
+                    continue;
+                },
+                _ => {
+                    return Err(ParserError::InvalidInheritanceToken(pos, self.line, token.to_string()))
+                }
+            }
+        }
+        return Ok(inheritance_arg);
     }
     
     /// Parse a string literal
@@ -423,12 +483,14 @@ fn flatten_let_expression(id: &Rc<str>, expr: AstNode, pos: usize, line: usize, 
         if bindings.len() == 1 {
             result = Ok(AstNode::Let {
                 name: id.clone(),
-                value: bindings[0].clone()
+                value: bindings[0].clone(),
+                inherit: None,
             });
         } else {
             result = Ok(AstNode::Let {
                 name: id.clone(),
-                value: Rc::new(expr)
+                value: Rc::new(expr),
+                inherit: None,
             });
         }
     } else { result = Err(ParserError::EmptyEnv(pos, line, token.to_string())) }
@@ -503,7 +565,8 @@ mod tests {
             name: None,
             bindings: vec![Rc::new(AstNode::Let {
                 name: "x".into(),
-                value: Rc::new(AstNode::Integer(5))
+                value: Rc::new(AstNode::Integer(5)),
+                inherit: None,
             })],
             parent: None,
             scope: EnvScope::GLOBAL
@@ -563,7 +626,8 @@ mod tests {
             name: None,
             bindings: vec![Rc::new(AstNode::Let {
                 name: "x".into(),
-                value: Rc::new(AstNode::Identifier("y".into()))
+                value: Rc::new(AstNode::Identifier("y".into())),
+                inherit: None,
             })],
             parent: None,
             scope: EnvScope::GLOBAL
@@ -622,7 +686,8 @@ mod tests {
                 assert_eq!(sub_bindings.len(), 1);
                 assert_eq!(sub_bindings[0], Rc::new(AstNode::Let {
                     name: "x".into(),
-                    value: Rc::new(AstNode::Integer(5))
+                    value: Rc::new(AstNode::Integer(5)),
+                    inherit: None,
                 }));
             }
         } else {

@@ -31,6 +31,10 @@ pub enum ParserError {
     InvalidAccessionTarget(usize, usize, String), // (pos, line, value)
     InvalidAccessionSource(usize, usize, String), // (pos, line, value)
     InvalidInheritanceToken(usize, usize, String),// (pos, line, value)
+    ParentlessInheritance(usize, usize, String),// (pos, line, value)
+    DoubleInheritanceParen(usize, usize, String),   // (pos, line, value)
+    WildcardAndElements(usize, usize, String),  // (pos, line, value)
+    NotInheritClause, // TODO: I am inappropriately formatted!
 }
 
 impl Error for ParserError {}
@@ -72,7 +76,15 @@ impl fmt::Display for ParserError {
             ParserError::InvalidAccessionSource(pos, line, valuestr) =>
                 write!(f, "Parser error at source line {}, token position {}: Invalid accession source '{}'", line, pos, valuestr),
             ParserError::InvalidInheritanceToken(pos, line, valuestr) =>
-                write!(f, "Parser error at source line {}, token position {}: Invalid token '{}' in inheritance statement", line, pos, valuestr)
+                write!(f, "Parser error at source line {}, token position {}: Invalid token '{}' in inheritance statement", line, pos, valuestr),
+            ParserError::ParentlessInheritance(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Inheritance in parentless environment: '{}'", line, pos, valuestr),
+            ParserError::DoubleInheritanceParen(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Second opening parenthesis for inheritance: '{}'", line, pos, valuestr),
+            ParserError::WildcardAndElements(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Cannot specify both identifiers and wildcard: '{}'", line, pos, valuestr),
+            ParserError::NotInheritClause =>
+                write!(f, "Parser error: Attempted to push name to something else than an inherit clause"),
         }
     }
 }

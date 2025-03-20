@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{environment::EnvScope, symbols::Operators};
+use crate::{environment::EnvScope, symbols::Operators, parser::ParserError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstNode {
@@ -29,18 +29,19 @@ pub enum AstNode {
     Let {
         name: Rc<str>,
         value: Rc<AstNode>,
+        inherit: Option<Rc<AstNode>>, // Capture the inherited elements as pointers, or none if none are inherited
     },
 
     // Inheritance
     Inherit {
-        source: Rc<AstNode>,
-        names: Vec<Rc<str>>,
+        names: Option<Vec<Rc<str>>>,
     },
 
     // Functions
     Function {
         params: Vec<Rc<str>>,
         body: Box<AstNode>,
+        inherit: Option<Rc<AstNode>>, // Capture the inherited elements as pointers, or none if none are inherited
     },
     FunctionCall {
         callee: Box<AstNode>,
@@ -70,12 +71,43 @@ impl ToString for AstNode {
             },
             AstNode::BinaryOp { left, operator, right }
                 => format!("{} {} {}", left.to_string(), operator.to_string(), right.to_string()),
-            AstNode::Let { name, value }
-                => format!("Let {} = {}", name, value.to_string()),
-            AstNode::Inherit { source, names }
-                => format!("Inherit elements '{}' from '{}'", source.to_string(), names.join(", ")),
-            AstNode::Function { params, .. }
-                => format!("Function with params [{}]", params.join(", ")),
+            AstNode::Let { name, value , inherit: _ }
+                => format!("Let {} = {} with {}", name, value.to_string(), {
+                    match self.get_inherited_names() {
+                        Some(names) => format!("inherited elements {}", {
+                            names.iter()
+                                .map(|x| x.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                        }),
+                        None => "no inherited elements".to_string()
+                    }
+                }),
+            AstNode::Inherit { names }
+                => format!("Inherit elements '{}'",
+                    match names {
+                        Some(names) => names.iter()
+                                        .map(|x| x.to_string())
+                                        .collect::<Vec<String>>()
+                                        .join(", "),
+                        None => "*".to_string()
+                    }),
+            AstNode::Function { params, body: _, inherit}
+                => format!("Function with params [{}] and {}", params.join(", "), {
+                    match inherit {
+                        Some(elements) => {
+                            if let Some(els) = elements.get_inherited_names() {
+                                els.iter()
+                                .map(|x| x.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                            } else {
+                                "all elements from encapsulating environment".to_string()
+                            }
+                        },
+                        None => "no inherited elements".to_string(),
+                    }
+                }),
             AstNode::FunctionCall { callee, arguments }
                 => format!("Function call by {} with arguments [{}]",
                     callee.to_string(),
@@ -118,6 +150,35 @@ impl AstNode {
         match self {
             AstNode::Environment { scope, .. } => Some(scope.clone()),
             _ => None, // This should never occur!
+        }
+    }
+
+    // Get inherited names
+    pub fn get_inherited_names(&self) -> Option<Vec<Rc<str>>> {
+        match self {
+            AstNode::Inherit { names } => {
+                if let Some(names) = names {
+                    return Some(names.clone());
+                } else {
+                    return None;
+                }
+            }
+            _ => None,
+        }
+    }
+
+    // Add inherited element to inheritance clause
+    pub fn push_inherited_name(&mut self, node: Rc<str>) -> Result<(), ParserError> {
+        match self{
+            AstNode::Inherit { ref mut names } => {
+                if let Some(names) = names {
+                    names.push(node);
+                    return Ok(());
+                } else {
+                    return Err(ParserError::WildcardAndElements(0, 0, "wrong implementation".to_string()))
+                }
+            },
+            _ => Err(ParserError::NotInheritClause),
         }
     }
 }
