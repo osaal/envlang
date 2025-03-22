@@ -42,6 +42,7 @@ pub enum AstNode {
         params: Vec<Rc<str>>,
         body: Box<AstNode>,
         inherit: Option<Rc<AstNode>>, // Capture the inherited elements as pointers, or none if none are inherited
+        r#return: Rc<AstNode>,
     },
     FunctionCall {
         callee: Box<AstNode>,
@@ -98,7 +99,7 @@ impl ToString for AstNode {
                                         .join(", "),
                         None => "*".to_string()
                     }),
-            AstNode::Function { params, body: _, inherit}
+            AstNode::Function { params, body: _, inherit, r#return: _}
                 => format!("Function with params [{}] and {}", params.join(", "), {
                     match inherit {
                         Some(elements) => {

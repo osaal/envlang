@@ -13,10 +13,12 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 #### Major changes
 
 - Lexer now recognises the `return` keyword
+- The `AstNode::Function` variant now takes a `r#return` field (escaped to avoid collisions with Rust's reserved keywords) with an `Rc<AstNode>` to whatever is to be returned from the function.
 
 #### Minor changes
 
 - Added lexer test for `return` keyword
+- Added the enum variant `ParseContext::Function`
 
 ### Version 0.5.8
 

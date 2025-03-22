@@ -14,6 +14,7 @@ pub use error::ParserError;
 enum ParseContext {
     Normal,
     Operation,
+    Function,
 }
 
 pub struct Parser {
@@ -195,7 +196,8 @@ impl Parser {
                             if name.is_some() {
                                 return Ok(current_env.clone());
                             }
-                        }
+                        },
+                        ParseContext::Function => todo!(),
                     }
                 },
                 Token::EOF => {
@@ -219,6 +221,7 @@ impl Parser {
     /// # Errors
     /// Returns an error if the assignment operation is invalid
     fn parse_assignment(&mut self, parent_env: Option<Rc<AstNode>>) -> Result<AstNode, ParserError> {
+        // TODO: Token::Keyword(Keywords::FUN) => self.parse_function_assignment(), 
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
