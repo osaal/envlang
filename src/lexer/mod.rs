@@ -251,6 +251,7 @@ impl Lexer {
             "fun" => Ok(Token::Keyword(Keywords::FUN)),
             "true" => Ok(Token::Boolean(Booleans::TRUE)),
             "false" => Ok(Token::Boolean(Booleans::FALSE)),
+            "return" => Ok(Token::Keyword(Keywords::RETURN)),
             _ => Ok(Token::Identifier(Rc::from(temp))),
         }
     }
@@ -542,6 +543,13 @@ mod tests {
         let input = vec!["fun".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
         assert_eq!(tokens, vec![Token::Keyword(Keywords::FUN), Token::EOF])
+    }
+
+    #[test]
+    fn matches_keyword_return() {
+        let input = vec!["return".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Keyword(Keywords::RETURN), Token::EOF])
     }
 
     #[test]

@@ -144,6 +144,8 @@ impl Parser {
                 Token::Keyword(Keywords::FUN) => // NYI
                     todo!(),    // Fun is not valid here, as we are inside a new environment at the first position
                                 // Fun is only valid after a let-statement (before the identifier)
+                Token::Keyword(Keywords::RETURN) => // NYI
+                    todo!(),
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
                 Token::FullStop(op) => {

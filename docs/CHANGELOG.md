@@ -8,6 +8,16 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.9
+
+#### Major changes
+
+- Lexer now recognises the `return` keyword
+
+#### Minor changes
+
+- Added lexer test for `return` keyword
+
 ### Version 0.5.8
 
 #### Major changes

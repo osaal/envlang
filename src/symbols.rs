@@ -163,6 +163,7 @@ pub enum Keywords {
     LET,            // let
     INHERIT,        // inherit
     FUN,            // fun
+    RETURN,         // return
 }
 
 impl ToString for Keywords {
@@ -171,6 +172,7 @@ impl ToString for Keywords {
             Keywords::LET => "let".to_string(),
             Keywords::INHERIT => "inherit".to_string(),
             Keywords::FUN => "fun".to_string(),
+            Keywords::RETURN => "return".to_string(),
         }
     }
 }
