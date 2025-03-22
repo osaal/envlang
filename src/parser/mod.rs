@@ -76,7 +76,7 @@ impl Parser {
             bindings: Vec::new(),
             parent: parent.clone(),
             scope: if parent.is_none() { EnvScope::GLOBAL } else { EnvScope::LOCAL }
-        };
+        }; // TODO: Scope should be removed, it is superfluous since parent already encodes scope
 
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
@@ -236,21 +236,37 @@ impl Parser {
     /// 
     /// Also errors if the parser hits EOF while constructing the let statement
     fn construct_let_statement(&mut self, parent_env: &Option<Rc<AstNode>>, id: &Rc<str>) -> Result<AstNode, ParserError> {
+        // Create a new Let object as mutable here
+        let mut result = AstNode::Let {
+            name: id.clone(),
+            value: None,
+            inherit: None
+        };
+        
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
                 Token::Keyword(Keywords::INHERIT) => {
-                    if let Ok(inheritance) = self.parse_inherit_clause() {
-                        // Where do we put the inheritance clause?
-                        // It should be in an AstNode::Let, but that doesn't exist here
-                        // as it is created by the next arm!
-                    }
+                    let inheritance = self.parse_inherit_clause()?; 
+                    // Modify the mutable Let object from above to contain the inheritance clause on the inherit element
+                    result.set_field::<AstNode>(|v| {
+                        if let AstNode::Let{ inherit, .. } = v {
+                            *inherit = Some(Rc::new(inheritance));
+                        }
+                    }).expect("Will always be AstNode::Let");
                     continue;
                 },
                 Token::Operator(op) => {
                     if *op == Operators::Other(OtherOperators::ASSIGNMENT) {
                         let expr: AstNode = self.parse_environment(parent_env.clone(), Some(id.clone()), ParseContext::Normal)?;
-                        return flatten_let_expression(id, expr, pos, self.line, &token);
+                        let let_env = flatten_let_expression(expr, pos, self.line, &token)?;
+
+                        result.set_field::<AstNode>(|v| {
+                            if let AstNode::Let{ value, .. } = v {
+                                *value = Some(let_env);
+                            }
+                        }).expect("Will always be AstNode::Let");
+                        return Ok(result);
                     } else {
                         return Err(ParserError::InvalidAssignmentOp(pos, self.line, token.to_string()));
                     }
@@ -289,12 +305,12 @@ impl Parser {
                     }
                 }
                 Token::Identifier(id) => {
-                    if let Some(names) = inheritance_arg.get_inherited_names() {
-                        if !names.is_empty() {
-                            return Err(ParserError::WildcardAndElements(pos, self.line, token.to_string()));
-                        }
-
+                    // None represents a previous wildcard, which cannot be combined with identifiers
+                    match inheritance_arg.get_inherited_names() {
+                        Some(_) => (),
+                        None => return Err(ParserError::WildcardAndElements(pos, self.line, token.to_string())),
                     }
+
                     inheritance_arg.push_inherited_name(id.clone())
                         // This is safe because inheritance_arg is defined to be AstNode::Inherit
                         .expect("inheritance_arg was created as Inherit");
@@ -477,21 +493,16 @@ impl Parser {
 /// 
 /// # Errors
 /// Returns an error if the let expression body is empty
-fn flatten_let_expression(id: &Rc<str>, expr: AstNode, pos: usize, line: usize, token: &Token) -> Result<AstNode, ParserError> {
-    let result: Result<AstNode, ParserError>;
+fn flatten_let_expression(expr: AstNode, pos: usize, line: usize, token: &Token) -> Result<Rc<AstNode>, ParserError> {
+    // Change the API of the function to take in a mutable reference to a Let object
+    let result: Result<Rc<AstNode>, ParserError>;
     if let Some(bindings) = expr.get_bindings() {
         if bindings.len() == 1 {
-            result = Ok(AstNode::Let {
-                name: id.clone(),
-                value: bindings[0].clone(),
-                inherit: None,
-            });
+            // Flatten the bindings and clone them into the mutable Let object
+            result = Ok(bindings[0].clone());
         } else {
-            result = Ok(AstNode::Let {
-                name: id.clone(),
-                value: Rc::new(expr),
-                inherit: None,
-            });
+            // Set the bindings to the mutable Let object as is
+            result = Ok(Rc::new(expr));
         }
     } else { result = Err(ParserError::EmptyEnv(pos, line, token.to_string())) }
     return result;
@@ -565,7 +576,7 @@ mod tests {
             name: None,
             bindings: vec![Rc::new(AstNode::Let {
                 name: "x".into(),
-                value: Rc::new(AstNode::Integer(5)),
+                value: Some(Rc::new(AstNode::Integer(5))),
                 inherit: None,
             })],
             parent: None,
@@ -626,7 +637,7 @@ mod tests {
             name: None,
             bindings: vec![Rc::new(AstNode::Let {
                 name: "x".into(),
-                value: Rc::new(AstNode::Identifier("y".into())),
+                value: Some(Rc::new(AstNode::Identifier("y".into()))),
                 inherit: None,
             })],
             parent: None,
@@ -686,7 +697,7 @@ mod tests {
                 assert_eq!(sub_bindings.len(), 1);
                 assert_eq!(sub_bindings[0], Rc::new(AstNode::Let {
                     name: "x".into(),
-                    value: Rc::new(AstNode::Integer(5)),
+                    value: Some(Rc::new(AstNode::Integer(5))),
                     inherit: None,
                 }));
             }
@@ -734,6 +745,71 @@ mod tests {
         })], parent: None, scope: EnvScope::GLOBAL });
     }
 
+    #[test]
+    fn assignment_with_specified_inheritance() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Keyword(Keywords::INHERIT),
+            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::Identifier("a".into()),
+            Token::Comma,
+            Token::Identifier("b".into()),
+            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "x".into(),
+                value: Some(Rc::new(AstNode::Integer(5))),
+                inherit: Some(Rc::new(AstNode::Inherit {
+                    names: Some(vec![
+                        "a".into(),
+                        "b".into(),
+                    ])
+                })),
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
+    }
+
+    #[test]
+    fn assignment_with_wildcard_inheritance() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Keyword(Keywords::INHERIT),
+            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
+            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "x".into(),
+                value: Some(Rc::new(AstNode::Integer(5))),
+                inherit: Some(Rc::new(AstNode::Inherit {
+                    names: None
+                })),
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
+    }
+
     // Error cases
     // TODO: Fix this test once the error handling is fixed to be more informative
     #[test]
@@ -774,5 +850,49 @@ mod tests {
         let ast = parser.parse();
         assert!(ast.is_err());
         assert_eq!(ast.unwrap_err(), ParserError::BinaryOpWithNoLHS(0, 1))
+    }
+
+    #[test]
+    fn cannot_inherit_specified_before_wildcard() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Keyword(Keywords::INHERIT),
+            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::Identifier("a".into()),
+            Token::Comma,
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
+            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse();
+        assert!(ast.is_err());
+        assert_eq!(ast.unwrap_err(), ParserError::WildcardAndElements(6, 1, "*".into()))
+    }
+
+    #[test]
+    fn cannot_inherit_wildcard_before_specified() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Keyword(Keywords::INHERIT),
+            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
+            Token::Comma,
+            Token::Identifier("a".into()),
+            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse();
+        assert!(ast.is_err());
+        assert_eq!(ast.unwrap_err(), ParserError::WildcardAndElements(6, 1, "a".into()))
     }
 }

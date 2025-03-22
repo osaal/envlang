@@ -12,13 +12,18 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 #### Major changes
 
-- Lexer now handles parentheses as well as commas in preparation for parsing inheritance arguments
+- Lexer now handles parentheses and commas for parsing inheritance arguments
+- The parser now parses inheritance arguments for `let` statements. Arguments are given in the form `let x inherit (a, b, c)` or with the wildcard operator `let x inherit (*)`.
+- The `AstNode` variant `Let` now takes an `Option`al `value` in order to handle default construction
+- Added the generic field setter `set_field<T>` for `AstNode`, for manipulating struct variants. It currently only supports changing fields for `Let` variants.
+- The associated function `flatten_let_expression` now returns the raw bindings of the let expression as `Rc<AstNode>`. Consequently, it no longer accepts the `id` of the let statement.
 
 #### Minor changes
 
 - Added lexer tests for parentheses and commas
 - Added getters for all fields in `AstNode` environments
 - Added error types for inheritance
+- Added tests for parsing inheritance arguments
 
 ### Version 0.5.7
 

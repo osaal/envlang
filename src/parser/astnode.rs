@@ -28,13 +28,13 @@ pub enum AstNode {
     // Bindings
     Let {
         name: Rc<str>,
-        value: Rc<AstNode>,
-        inherit: Option<Rc<AstNode>>, // Capture the inherited elements as pointers, or none if none are inherited
+        value: Option<Rc<AstNode>>,     // Holds None upon initialization
+        inherit: Option<Rc<AstNode>>,   // Capture the inherited elements as pointers, or none if none are inherited
     },
 
     // Inheritance
     Inherit {
-        names: Option<Vec<Rc<str>>>,
+        names: Option<Vec<Rc<str>>>,    // None for wildcard inheritance, Some for specified inheritance
     },
 
     // Functions
@@ -72,7 +72,13 @@ impl ToString for AstNode {
             AstNode::BinaryOp { left, operator, right }
                 => format!("{} {} {}", left.to_string(), operator.to_string(), right.to_string()),
             AstNode::Let { name, value , inherit: _ }
-                => format!("Let {} = {} with {}", name, value.to_string(), {
+                => format!("Let {} = {} with {}", name, {
+                    if let Some(val) = value {
+                        val.to_string()
+                    } else {
+                        "nothing".to_string()
+                    }
+                }, {
                     match self.get_inherited_names() {
                         Some(names) => format!("inherited elements {}", {
                             names.iter()
@@ -179,6 +185,18 @@ impl AstNode {
                 }
             },
             _ => Err(ParserError::NotInheritClause),
+        }
+    }
+
+    // Generic field setting for Let statements
+    // This should be extendable to other struct variants (e.g., Function or FunctionCall) as needed
+    pub fn set_field<T>(&mut self, field_setter: impl FnOnce(&mut AstNode)) -> Result<(), &'static str> {
+        match self {
+            AstNode::Let { .. } => {
+                field_setter(self);
+                Ok(())
+            },
+            _ => Err("Not a Let statement")
         }
     }
 }
