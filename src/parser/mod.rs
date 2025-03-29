@@ -102,9 +102,14 @@ impl Parser {
                 Token::RightBrace(_) => {
                     // Global env is constructed by Token::EOF
                     if parent.is_none() { continue; };
-                    
+                    // TODO: Match on ParseContext and error if ::Function and the Return statement is yet to be constructed! (Actually, this last part is implied by reaching this spot)
                     return Ok(current_env);
                 },
+                Token::LeftParen(_) => todo!(),     // Covered by parse_inherit_clause
+                Token::RightParen(_) => todo!(),    // Covered by parse_inherit_clause
+                Token::Comma => todo!(),            // Covered by parse_inherit_clause and parse_function_clause
+                Token::LeftBracket(_) => todo!(),   // Covered by parse_function_clause
+                Token::RightBracket(_) => todo!(),  // Covered by parse_function_clause
                 Token::Identifier(id) => {
                     let node: AstNode = self.parse_identifier(&id)?;
                     if let AstNode::Environment { ref mut bindings, .. } = current_env {
@@ -139,14 +144,16 @@ impl Parser {
                         bindings.push(Rc::new(node));
                     }
                 },
-                Token::Keyword(Keywords::INHERIT) => // NYI
+                Token::Keyword(Keywords::INHERIT) =>    // Covered by construct_let_statement
                     todo!(),    // Inherit is not valid here, as we are inside a new environment at the first position
                                 // Inherit is only valid after a let-identifier or a function-argument-clause
-                Token::Keyword(Keywords::FUN) => // NYI
+                Token::Keyword(Keywords::FUN) =>        // Covered by parse_assignment
                     todo!(),    // Fun is not valid here, as we are inside a new environment at the first position
                                 // Fun is only valid after a let-statement (before the identifier)
-                Token::Keyword(Keywords::RETURN) => // NYI
-                    todo!(),
+                Token::Keyword(Keywords::RETURN) =>     // NYI
+                    todo!(),    // Call self.parse_environment to construct the return environment
+                                // Remember to flatten out the environment if the result is one element!
+                                // NOTE: flatten_environment now expects a 0-1-sized AstNode::Environment
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
                 Token::FullStop(op) => {
@@ -197,7 +204,10 @@ impl Parser {
                                 return Ok(current_env.clone());
                             }
                         },
-                        ParseContext::Function => todo!(),
+                        ParseContext::Function => {
+                            // TODO: Check that the return environment has been constructed and error otherwise
+                            todo!()
+                        },
                     }
                 },
                 Token::EOF => {
@@ -208,7 +218,6 @@ impl Parser {
                         return Err(ParserError::UnexpectedEOF(pos, self.line));
                     }
                 },
-                _ => (),
             }
         }
         Err(ParserError::UnclosedEnvironment(self.line))
@@ -221,15 +230,164 @@ impl Parser {
     /// # Errors
     /// Returns an error if the assignment operation is invalid
     fn parse_assignment(&mut self, parent_env: Option<Rc<AstNode>>) -> Result<AstNode, ParserError> {
-        // TODO: Token::Keyword(Keywords::FUN) => self.parse_function_assignment(), 
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
-                Token::Identifier(id) => return Ok(self.construct_let_statement(&parent_env, id)?),
+                Token::Keyword(Keywords::FUN) => {
+                    return Ok(self.parse_function_declaration(&parent_env)?);
+                }, 
+                Token::Identifier(id) => {
+                    return Ok(self.construct_let_statement(&parent_env, id, ParseContext::Normal)?);
+                },
                 _ => return Err(ParserError::MissingLetIdentifier(pos, self.line)), 
             }
         }
         Err(ParserError::ParserLogicError(self.current, self.line))
+    }
+
+    fn parse_function_declaration(&mut self, parent_env: &Option<Rc<AstNode>>) -> Result<AstNode, ParserError> {
+        // Temporary variables to store required components (ordered by Envlang syntax for ease of reading)
+        let mut fn_name: Option<Rc<str>> = None;
+        let mut fn_args: Option<AstNode> = None;
+        let mut inheritance: Option<Rc<AstNode>> = None;
+        let mut fn_body: Option<AstNode> = None;
+        let mut fn_return: Option<AstNode> = None;
+
+        // Step 1: Parse function name
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::Identifier(id) => {
+                    fn_name = Some(id.clone());
+                    break;
+                },
+                _ => return Err(ParserError::MissingFunctionName(pos, self.line, token.to_string())),
+            }
+        }
+
+        // Step 2: Parse function arguments (no allowed whitespace between name and arguments)
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::LeftBracket(_) => {
+                    fn_args = Some(self.parse_function_clause()?);
+                    break;
+                },
+                _ => return Err(ParserError::MissingFunctionArgs(pos, self.line)),
+            }
+        }
+
+        // Step 3: Parse optional inheritance clause
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::Keyword(Keywords::INHERIT) => {
+                    inheritance = Some(Rc::new(self.parse_inherit_clause()?));
+                    break;
+                },
+                Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)) => {
+                    // Backtracking to use operator in next step
+                    self.current -= 1;
+                    break;
+                },
+                _ => return Err(ParserError::InvalidTokenInFnSignature(pos, self.line, token.to_string())),
+            }
+        }
+
+        // Step 4: Parse assignment operator and function body
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)) => {
+                    fn_body = Some(self.parse_environment(
+                        parent_env.clone(),
+                        fn_name.clone(),
+                        ParseContext::Function
+                    )?);
+                    break;
+                },
+                _ => return Err(ParserError::MissingAssignmentOp(pos, self.line)),
+            }
+        }
+
+        // Step 5: Parse return statement
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::Keyword(Keywords::RETURN) => {
+                    fn_return = Some(self.parse_environment(
+                        None,
+                        None,
+                        ParseContext::Normal // Should we use a new ::FunctionReturn?
+                    )?);
+                    break;
+                },
+                Token::EOF => return Err(ParserError::UnexpectedEOF(pos, self.line)),
+                _ => continue,
+            }
+        }
+
+        // Validate that required components were parsed
+        let fn_name = fn_name.ok_or_else(|| ParserError::MissingFunctionName(self.current, self.line, "".into()))?;
+        let fn_args = fn_args.ok_or_else(|| ParserError::MissingFunctionArgs(self.current, self.line))?;
+        let fn_body = fn_body.ok_or_else(|| ParserError::MissingFunctionBody(self.current, self.line))?;
+        let fn_return = fn_return.ok_or_else(|| ParserError::MissingReturnStatement(self.current, self.line, "".into()))?;
+
+        // Construct the complete function node
+        Ok(AstNode::Let {
+            name: fn_name,
+            value: Some(Rc::new(AstNode::Function {
+                params: Rc::new(fn_args),
+                body: Rc::new(fn_body),
+                r#return: Rc::new(fn_return),
+            })),
+            inherit: inheritance,
+        })
+    }
+
+    fn parse_function_clause(&mut self) -> Result<AstNode, ParserError> {
+        let mut result = AstNode::FunctionArgs(Vec::new());
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
+                Token::LeftBracket(_) => {
+                    // If the element vector is non-empty, this represents a syntax error
+                    if let Some(names) = result.get_params() {
+                        if !names.is_empty() {
+                            return Err(ParserError::DoubleFunArgBracket(pos, self.line, token.to_string()));
+                        }
+                    }
+                    continue;
+                },
+                Token::RightBracket(_) => {
+                    // Finish parsing identifiers and return
+                    return Ok(result);
+                },
+                Token::Comma => {
+                    continue;
+                },
+                Token::Identifier(id) => {
+                    // Add identifier pointer to vector
+                    result.set_field::<AstNode>(|v| {
+                        let AstNode::FunctionArgs(args) = v else {
+                            unreachable!("Safety: Will always be AstNode::FunctionArgs");
+                        };
+                        let node = self.parse_identifier(&id)?;
+                        args.push(Rc::new(node));
+                        Ok(())
+                    })?;
+                    continue;
+                },
+                Token::EOF => {
+                    // ERROR: Unclosed argument clause
+                    return Err(ParserError::UnclosedArgumentClause(self.line));
+                }
+                _ => {
+                    // ERROR: Not a valid symbol in a function clause (could be unclosed argument clause!)
+                    return Err(ParserError::InvalidFunArgToken(pos, self.line, token.to_string()));
+                },
+            }
+        }
+        return Err(ParserError::ParserLogicError(self.current, self.line));
     }
 
     /// Construct a let statement
@@ -239,15 +397,16 @@ impl Parser {
     /// # Errors
     /// Returns an error if the let statement is using a non-assignment operator, or if the assignment operator is missing
     /// 
-    /// Also errors if the parser hits EOF while constructing the let statement
-    fn construct_let_statement(&mut self, parent_env: &Option<Rc<AstNode>>, id: &Rc<str>) -> Result<AstNode, ParserError> {
+    /// Also errors if the parser hits EOF while constructing the let statement (but currently not informatively!)
+    fn construct_let_statement(&mut self, parent_env: &Option<Rc<AstNode>>, id: &Rc<str>, context: ParseContext) -> Result<AstNode, ParserError> {
         // Create a new Let object as mutable here
         let mut result = AstNode::Let {
             name: id.clone(),
             value: None,
             inherit: None
         };
-        
+
+        // TODO: Refactor me into construct_statement_body or something similar (I handle both regular let statements and function let statements)
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
@@ -258,19 +417,33 @@ impl Parser {
                         if let AstNode::Let{ inherit, .. } = v {
                             *inherit = Some(Rc::new(inheritance));
                         }
-                    }).expect("Will always be AstNode::Let");
+                        Ok(())
+                    }).expect("Safety: Will always be AstNode::Let");
                     continue;
                 },
                 Token::Operator(op) => {
                     if *op == Operators::Other(OtherOperators::ASSIGNMENT) {
-                        let expr: AstNode = self.parse_environment(parent_env.clone(), Some(id.clone()), ParseContext::Normal)?;
-                        let let_env = flatten_let_expression(expr, pos, self.line, &token)?;
+                        // TODO: Check whether ParseContext::Normal or ::Function here with a match on ParseFunction
+                        let expr: AstNode = self.parse_environment(parent_env.clone(), Some(id.clone()), context)?;
+
+                        // If we are ::Function, let_env has to be wrapped inside AstNode::Function{body} before setting to result
+                        // We also then need to add fn_clause from the calling context into AstNode::Function{params}
+                        // Finally, somewhere, we need to match on Keyword::RETURN and construct a new Environment, which is wrapped into AstNode::Function(r#return)
+                        
+                        let let_env: Rc<AstNode>;
+                        if expr.is_single_element_env() {
+                            let_env = flatten_environment(&expr, pos, self.line, &token)?;
+                        } else {
+                            let_env = Rc::new(expr);
+                        }
 
                         result.set_field::<AstNode>(|v| {
                             if let AstNode::Let{ value, .. } = v {
                                 *value = Some(let_env);
                             }
-                        }).expect("Will always be AstNode::Let");
+                            Ok(())
+                        }).expect("Safety: Will always be AstNode::Let");
+
                         return Ok(result);
                     } else {
                         return Err(ParserError::InvalidAssignmentOp(pos, self.line, token.to_string()));
@@ -317,8 +490,7 @@ impl Parser {
                     }
 
                     inheritance_arg.push_inherited_name(id.clone())
-                        // This is safe because inheritance_arg is defined to be AstNode::Inherit
-                        .expect("inheritance_arg was created as Inherit");
+                        .expect("Safety: Will always be AstNode::Inherit");
                     continue;
                 },
                 Token::Comma => {
@@ -490,27 +662,28 @@ impl Parser {
     }
 }
 
-/// Flatten a let expression into a single let binding
+/// Flatten an environment into a single binding
 /// 
-/// If the let expression contains only one binding, it is flattened into a single let binding
+/// Takes a single-element environment and returns its binding as a pointer
 /// 
-/// Otherwise, the let expression is returned as is
+/// # Safety
+/// 
+/// The caller must make sure that the AstNode::Environment has exactly zero or one binding.
+/// If the AstNode::Environment has more than one binding, the function only returns the first binding.
 /// 
 /// # Errors
-/// Returns an error if the let expression body is empty
-fn flatten_let_expression(expr: AstNode, pos: usize, line: usize, token: &Token) -> Result<Rc<AstNode>, ParserError> {
-    // Change the API of the function to take in a mutable reference to a Let object
-    let result: Result<Rc<AstNode>, ParserError>;
-    if let Some(bindings) = expr.get_bindings() {
-        if bindings.len() == 1 {
-            // Flatten the bindings and clone them into the mutable Let object
-            result = Ok(bindings[0].clone());
-        } else {
-            // Set the bindings to the mutable Let object as is
-            result = Ok(Rc::new(expr));
-        }
-    } else { result = Err(ParserError::EmptyEnv(pos, line, token.to_string())) }
-    return result;
+/// 
+/// Errors if `expr` is not an AstNode::Environment, or if the `bindings` vector is empty
+fn flatten_environment(expr: &AstNode, pos: usize, line: usize, token: &Token) -> Result<Rc<AstNode>, ParserError> {
+    match expr {
+        AstNode::Environment{ bindings, .. } => {
+            if bindings.len() == 0 {
+                return Err(ParserError::EmptyEnv(pos, line, token.to_string()));
+            }
+            return Ok(bindings[0].clone());
+        },
+        _ => return Err(ParserError::NotAnEnvironment(pos, line, token.to_string()))
+    }
 }
 
 #[cfg(test)]

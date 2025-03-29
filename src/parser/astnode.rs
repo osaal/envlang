@@ -38,12 +38,12 @@ pub enum AstNode {
     },
 
     // Functions
-    Function {
-        params: Vec<Rc<str>>,
-        body: Box<AstNode>,
-        inherit: Option<Rc<AstNode>>, // Capture the inherited elements as pointers, or none if none are inherited
-        r#return: Rc<AstNode>,
+    Function {                          // Inheritance is covered in the encapsulating Let object
+        params: Rc<AstNode>,            // Will be AstNode::FunctionArgs
+        body: Rc<AstNode>,             // TODO: Should be a Rc<AstNode> for API similarity -> Will be an environment
+        r#return: Rc<AstNode>,          // Will be an environment
     },
+    FunctionArgs(Vec<Rc<AstNode>>),     // Vector of AstNode::Identifier's
     FunctionCall {
         callee: Box<AstNode>,
         arguments: Vec<Rc<AstNode>>,
@@ -99,22 +99,12 @@ impl ToString for AstNode {
                                         .join(", "),
                         None => "*".to_string()
                     }),
-            AstNode::Function { params, body: _, inherit, r#return: _}
-                => format!("Function with params [{}] and {}", params.join(", "), {
-                    match inherit {
-                        Some(elements) => {
-                            if let Some(els) = elements.get_inherited_names() {
-                                els.iter()
-                                .map(|x| x.to_string())
-                                .collect::<Vec<String>>()
-                                .join(", ")
-                            } else {
-                                "all elements from encapsulating environment".to_string()
-                            }
-                        },
-                        None => "no inherited elements".to_string(),
-                    }
-                }),
+            AstNode::Function { params, .. }
+                => format!("Function with params {}", params.to_string()),
+            AstNode::FunctionArgs(params)
+                => format!("[{}]",
+                    params.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(", ")
+                ),
             AstNode::FunctionCall { callee, arguments }
                 => format!("Function call by {} with arguments [{}]",
                     callee.to_string(),
@@ -127,6 +117,20 @@ impl ToString for AstNode {
 impl AstNode {
     // Check whether the node is an environment
     pub fn is_environment(&self) -> bool { matches!(self, AstNode::Environment { .. }) }
+
+    // Check whether a contained environment has a single element
+    // Returns `true` if self is an Environment with a single element
+    // Returns `false` if self is not an Environment or if self contains multiple elements
+    pub fn is_single_element_env(&self) -> bool {
+        if let Some(bindings) = self.get_bindings() {
+            if bindings.len() == 1 {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        false
+    }
 
     // Get the bindings of an environment
     pub fn get_bindings(&self) -> Option<Vec<Rc<AstNode>>> {
@@ -157,6 +161,18 @@ impl AstNode {
         match self {
             AstNode::Environment { scope, .. } => Some(scope.clone()),
             _ => None, // This should never occur!
+        }
+    }
+
+    // Get function argument parameters
+    pub fn get_params(&self) -> Option<Vec<Rc<AstNode>>> {
+        match self {
+            AstNode::FunctionArgs(names) => {
+                return Some(names.clone());
+            },
+            _ => {
+                return None;
+            },
         }
     }
 
@@ -191,13 +207,13 @@ impl AstNode {
 
     // Generic field setting for Let statements
     // This should be extendable to other struct variants (e.g., Function or FunctionCall) as needed
-    pub fn set_field<T>(&mut self, field_setter: impl FnOnce(&mut AstNode)) -> Result<(), &'static str> {
+    pub fn set_field<T>(&mut self, field_setter: impl FnOnce(&mut AstNode) -> Result<(), ParserError>) -> Result<(), ParserError> {
         match self {
-            AstNode::Let { .. } => {
-                field_setter(self);
+            AstNode::Let { .. } | AstNode::FunctionArgs(_) => {
+                field_setter(self)?;
                 Ok(())
             },
-            _ => Err("Not a Let statement")
+            _ => Err(ParserError::ParserLogicError(0, 0)), // TODO: Make error more informative
         }
     }
 }

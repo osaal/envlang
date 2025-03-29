@@ -12,13 +12,28 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 #### Major changes
 
-- Lexer now recognises the `return` keyword
+- Lexer now recognises the `return` keyword as well as parameter declarations in function signatures (`[]`).
 - The `AstNode::Function` variant now takes a `r#return` field (escaped to avoid collisions with Rust's reserved keywords) with an `Rc<AstNode>` to whatever is to be returned from the function.
+- The `AstNode::Function` variant no longer takes the `inherit` field. Inherited elements are captured in the surrounding `Let` variant instead.
+- Added the `AstNode::FunctionArgs` variant to encapsulate declared function arguments. These are then encapsulated in the `params` field of the `AstNode::Function` variant.
+- The generic field setter `AstNode::set_field<T>` now expects a closure that returns `Result<(), ParserError>` in order to support bubbling up errors when setting fields.
+- `Parser::parse_environment` now uses fully enumerated matching (instead of using the catch-all `_` at the end) to guarantee robustness in future expansions of parsing. All new `Token` variants have been added, either with logic or `todo!()` macros, depending on their current status.
+- `Parser::parse_assignment` now recognises the `fun` keyword and calls the new method `Parser::parse_function_declaration`.
+- All function parsing is handled by `parse_function_declaration`, with multiple error states if the syntax is misspecified.
+- `Parser::construct_let_statement` now takes a `ParserContext` enum variant.
+- The associated function `Parser::flatten_let_expression` has been reworked and refactored into `flatten_expression`. It now flattens any `AstNode::Environment` with one element.
+
 
 #### Minor changes
 
-- Added lexer test for `return` keyword
-- Added the enum variant `ParseContext::Function`
+- Added lexer test for `return` keyword.
+- Added the enum variant `ParseContext::Function`.
+- Added the enum variants `Token::LeftBracket` and `Token::RightBracket`.
+- Added the public method `AstNode::is_single_element_env` for checking whether an AstNode is an Environment variant with only a single element inside itself.
+- Added the public method `AstNoded::get_params` for returning the parameters of an `AstNode::FunctionArgs` variant.
+- Extended the generic field setter `AstNode::set_field<T>` to work with the `AstNode::FunctionArgs` variant.
+- Added many new error variants to `ParserError` related to function declaration parsing.
+- Cleaned up safety documentation when using `.expect()` on method calls guaranteed to return `Ok(T)`.
 
 ### Version 0.5.8
 

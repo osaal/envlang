@@ -7,6 +7,8 @@ pub enum Token {
     RightBrace(ReservedSymbols),
     LeftParen(ReservedSymbols),
     RightParen(ReservedSymbols),
+    LeftBracket(ReservedSymbols),
+    RightBracket(ReservedSymbols),
     Identifier(Rc<str>),
     Number(Rc<str>),
     StringLiteral(Rc<str>),
@@ -32,7 +34,9 @@ impl ToString for Token {
             Token::LeftBrace(b)
             | Token::RightBrace(b)
             | Token::LeftParen(b)
-            | Token::RightParen(b) => b.to_string(),
+            | Token::RightParen(b)
+            | Token::LeftBracket(b)
+            | Token::RightBracket(b) => b.to_string(),
             Token::FullStop(fs) => fs.to_string(),
             Token::Whitespace(w) => w.to_string(),
             Token::EOF => "end of file".to_string(),

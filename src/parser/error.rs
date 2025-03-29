@@ -35,6 +35,15 @@ pub enum ParserError {
     DoubleInheritanceParen(usize, usize, String),   // (pos, line, value)
     WildcardAndElements(usize, usize, String),  // (pos, line, value)
     NotInheritClause, // TODO: I am inappropriately formatted!
+    NotAnEnvironment(usize, usize, String),     // (pos, line, value)
+    InvalidFunArgToken(usize, usize, String),   // (pos, line, value)
+    DoubleFunArgBracket(usize, usize, String),  // (pos, line, value)
+    UnclosedArgumentClause(usize),              // (line)
+    MissingFunctionName(usize, usize, String),  // (pos, line, value)
+    MissingFunctionArgs(usize, usize),          // (pos, line)
+    MissingFunctionBody(usize, usize),          // (pos, line)
+    MissingReturnStatement(usize, usize, String),   // (pos, line, value)
+    InvalidTokenInFnSignature(usize, usize, String),// (pos, line, value)
 }
 
 impl Error for ParserError {}
@@ -85,6 +94,24 @@ impl fmt::Display for ParserError {
                 write!(f, "Parser error at source line {}, token position {}: Cannot specify both identifiers and wildcard: '{}'", line, pos, valuestr),
             ParserError::NotInheritClause =>
                 write!(f, "Parser error: Attempted to push name to something else than an inherit clause"),
+            ParserError::NotAnEnvironment(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected an Environment instead of: '{}'", line, pos, valuestr),
+            ParserError::InvalidFunArgToken(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected whitespace, brackets, commas, or identifiers, instead of: '{}", line, pos, valuestr),
+            ParserError::DoubleFunArgBracket(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Second opening bracket for function arguments: '{}'", line, pos, valuestr),
+            ParserError::UnclosedArgumentClause(line) =>
+                write!(f, "Parser error at source line {}: Unclosed function argument clause", line),
+            ParserError::MissingFunctionName(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected function identifier instead of: '{}'", line, pos, valuestr),
+            ParserError::MissingFunctionArgs(pos,line) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected function arguments", line, pos),
+            ParserError::MissingFunctionBody(pos, line) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected function body", line, pos),
+            ParserError::MissingReturnStatement(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected return statement instead of: '{}", line, pos, valuestr),
+            ParserError::InvalidTokenInFnSignature(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected inheritance clause or assignment operator instead of: '{}'", line, pos, valuestr),
         }
     }
 }

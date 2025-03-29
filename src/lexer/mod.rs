@@ -141,6 +141,10 @@ impl Lexer {
                     tokens.push(Token::LeftParen(ReservedSymbols::INHERITOPEN)),
                 ")" =>
                     tokens.push(Token::RightParen(ReservedSymbols::INHERITCLOSE)),
+                "[" =>
+                    tokens.push(Token::LeftBracket(ReservedSymbols::FUNARGOPEN)),
+                "]" =>
+                    tokens.push(Token::RightBracket(ReservedSymbols::FUNARGCLOSE)),
                 "\"" =>
                     tokens.push(self.tokenize_string("\"", pos)?),
                 "'" =>
