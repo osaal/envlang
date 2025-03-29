@@ -27,13 +27,14 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 #### Minor changes
 
 - Added lexer test for `return` keyword.
-- Added the enum variant `ParseContext::Function`.
+- Added the enum variants `ParseContext::Function` and `ParseContext::FunctionReturn`.
 - Added the enum variants `Token::LeftBracket` and `Token::RightBracket`.
 - Added the public method `AstNode::is_single_element_env` for checking whether an AstNode is an Environment variant with only a single element inside itself.
 - Added the public method `AstNoded::get_params` for returning the parameters of an `AstNode::FunctionArgs` variant.
 - Extended the generic field setter `AstNode::set_field<T>` to work with the `AstNode::FunctionArgs` variant.
 - Added many new error variants to `ParserError` related to function declaration parsing.
 - Cleaned up safety documentation when using `.expect()` on method calls guaranteed to return `Ok(T)`.
+- Added unit test for function declaration.
 
 ### Version 0.5.8
 

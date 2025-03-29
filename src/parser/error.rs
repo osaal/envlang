@@ -44,6 +44,7 @@ pub enum ParserError {
     MissingFunctionBody(usize, usize),          // (pos, line)
     MissingReturnStatement(usize, usize, String),   // (pos, line, value)
     InvalidTokenInFnSignature(usize, usize, String),// (pos, line, value)
+    UnexpectedReturn(usize, usize),             // (pos, line)
 }
 
 impl Error for ParserError {}
@@ -112,6 +113,8 @@ impl fmt::Display for ParserError {
                 write!(f, "Parser error at source line {}, token position {}: Expected return statement instead of: '{}", line, pos, valuestr),
             ParserError::InvalidTokenInFnSignature(pos, line, valuestr) =>
                 write!(f, "Parser error at source line {}, token position {}: Expected inheritance clause or assignment operator instead of: '{}'", line, pos, valuestr),
+            ParserError::UnexpectedReturn(pos, line) =>
+                write!(f, "Parser error at source line {}, token position {}: The `return` keyword is not valid in this context", line, pos)
         }
     }
 }

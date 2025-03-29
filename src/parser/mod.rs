@@ -15,6 +15,7 @@ enum ParseContext {
     Normal,
     Operation,
     Function,
+    FunctionReturn,
 }
 
 pub struct Parser {
@@ -151,9 +152,22 @@ impl Parser {
                     todo!(),    // Fun is not valid here, as we are inside a new environment at the first position
                                 // Fun is only valid after a let-statement (before the identifier)
                 Token::Keyword(Keywords::RETURN) =>     // NYI
-                    todo!(),    // Call self.parse_environment to construct the return environment
-                                // Remember to flatten out the environment if the result is one element!
-                                // NOTE: flatten_environment now expects a 0-1-sized AstNode::Environment
+                    match context {
+                        ParseContext::Function => {
+                            let return_env = self.parse_environment(
+                                None,
+                                None,
+                                ParseContext::FunctionReturn
+                            )?;
+
+                            if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                                bindings.push(Rc::new(return_env));
+                            }
+
+                            return Ok(current_env);
+                        },
+                        _ => return Err(ParserError::UnexpectedReturn(pos, self.line)),
+                    }
                 Token::Whitespace(ws) =>
                     self.parse_whitespace(ws),
                 Token::FullStop(op) => {
@@ -208,6 +222,9 @@ impl Parser {
                             // TODO: Check that the return environment has been constructed and error otherwise
                             todo!()
                         },
+                        ParseContext::FunctionReturn => {
+                            return Ok(current_env.clone());
+                        }
                     }
                 },
                 Token::EOF => {
@@ -293,36 +310,40 @@ impl Parser {
             }
         }
 
-        // Step 4: Parse assignment operator and function body
+        // Step 4: Parse assignment operator, function body, and return statement
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
                 Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)) => {
-                    fn_body = Some(self.parse_environment(
+                    let body = self.parse_environment(
                         parent_env.clone(),
                         fn_name.clone(),
                         ParseContext::Function
-                    )?);
-                    break;
+                    )?;
+                    
+                    if let AstNode::Environment { bindings, .. } = &body {
+                        if let Some(last) = bindings.last() {
+                            fn_body = Some(AstNode::Environment {
+                                name: fn_name.clone(),
+                                bindings: bindings[..bindings.len()-1].to_vec(),
+                                parent: parent_env.clone(),
+                                scope: EnvScope::LOCAL,
+                            });
+                            // I apologize for the following disgusting pointer indirection...
+                            if let AstNode::Environment { bindings: return_bindings, .. } = &**last {
+                                fn_return = Some(AstNode::Environment {
+                                    name: None,
+                                    bindings: return_bindings.clone(),
+                                    parent: parent_env.clone(),
+                                    scope: EnvScope::LOCAL,
+                                });
+                            }
+                            break;
+                        }
+                    }
+                    return Err(ParserError::MissingReturnStatement(pos, self.line, "".into()));
                 },
                 _ => return Err(ParserError::MissingAssignmentOp(pos, self.line)),
-            }
-        }
-
-        // Step 5: Parse return statement
-        while let Some((pos, token)) = self.advance() {
-            match token.borrow() {
-                Token::Whitespace(ws) => self.parse_whitespace(ws),
-                Token::Keyword(Keywords::RETURN) => {
-                    fn_return = Some(self.parse_environment(
-                        None,
-                        None,
-                        ParseContext::Normal // Should we use a new ::FunctionReturn?
-                    )?);
-                    break;
-                },
-                Token::EOF => return Err(ParserError::UnexpectedEOF(pos, self.line)),
-                _ => continue,
             }
         }
 
@@ -982,6 +1003,52 @@ mod tests {
                 inherit: Some(Rc::new(AstNode::Inherit {
                     names: None
                 })),
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
+    }
+
+    // Function tests
+    #[test]
+    fn minimal_function_assignment() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Keyword(Keywords::FUN),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Keyword(Keywords::RETURN),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "foo".into(),
+                value: Some(Rc::new(AstNode::Function {
+                    params: Rc::new(AstNode::FunctionArgs(vec![])),
+                    body: Rc::new(AstNode::Environment {
+                        name: Some("foo".into()),
+                        bindings: vec![],
+                        parent: None,
+                        scope: EnvScope::LOCAL,
+                    }),
+                    r#return: Rc::new(AstNode::Environment {
+                        name: None,
+                        bindings: vec![],
+                        parent: None,
+                        scope: EnvScope::LOCAL,
+                    })
+                })),
+            inherit: None,
             })],
             parent: None,
             scope: EnvScope::GLOBAL
