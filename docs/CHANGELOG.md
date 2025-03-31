@@ -22,11 +22,13 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 - All function parsing is handled by `parse_function_declaration`, with multiple error states if the syntax is misspecified.
 - `Parser::construct_let_statement` now takes a `ParserContext` enum variant.
 - The associated function `Parser::flatten_let_expression` has been reworked and refactored into `flatten_expression`. It now flattens any `AstNode::Environment` with one element.
+- The method `parse_environment` is now allowed to finish with no tokens left in the stream if the parsing context is the global environment or a function return statement environment.
 
 
 #### Minor changes
 
 - Parser now skips left braces in all other cases than when `ParseContext::Normal`.
+- Parser now ignores EOF errors when in either the global environment or a function return statement environment.
 - Fixed parentage logic error in parsing let statements
 - Added lexer test for `return` keyword.
 - Added the enum variants `ParseContext::Function` and `ParseContext::FunctionReturn`.

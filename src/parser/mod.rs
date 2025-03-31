@@ -101,16 +101,14 @@ impl Parser {
                     }
                 },
                 Token::RightBrace(_) => {
-                    // Global env is constructed by Token::EOF
-                    if parent.is_none() { continue; };
-                    // TODO: Match on ParseContext and error if ::Function and the Return statement is yet to be constructed! (Actually, this last part is implied by reaching this spot)
+                    if parent.is_none() { continue; };  // Global env is constructed by Token::EOF
                     return Ok(current_env);
                 },
-                Token::LeftParen(_) => todo!(),     // Covered by parse_inherit_clause
-                Token::RightParen(_) => todo!(),    // Covered by parse_inherit_clause
-                Token::Comma => todo!(),            // Covered by parse_inherit_clause and parse_function_clause
-                Token::LeftBracket(_) => todo!(),   // Covered by parse_function_clause
-                Token::RightBracket(_) => todo!(),  // Covered by parse_function_clause
+                Token::LeftParen(_) => continue,        // Covered by parse_inherit_clause
+                Token::RightParen(_) => continue,       // Covered by parse_inherit_clause
+                Token::Comma => continue,               // Covered by parse_inherit_clause and parse_function_clause
+                Token::LeftBracket(_) => continue,      // Covered by parse_function_clause
+                Token::RightBracket(_) => continue,     // Covered by parse_function_clause
                 Token::Identifier(id) => {
                     let node: AstNode = self.parse_identifier(&id)?;
                     if let AstNode::Environment { ref mut bindings, .. } = current_env {
@@ -145,12 +143,14 @@ impl Parser {
                         bindings.push(Rc::new(node));
                     }
                 },
-                Token::Keyword(Keywords::INHERIT) =>    // Covered by construct_let_statement
-                    todo!(),    // Inherit is not valid here, as we are inside a new environment at the first position
-                                // Inherit is only valid after a let-identifier or a function-argument-clause
-                Token::Keyword(Keywords::FUN) =>        // Covered by parse_assignment
-                    todo!(),    // Fun is not valid here, as we are inside a new environment at the first position
-                                // Fun is only valid after a let-statement (before the identifier)
+                Token::Keyword(Keywords::INHERIT) => {
+                    // Covered by construct_let_statement
+                    continue;
+                },
+                Token::Keyword(Keywords::FUN) => {
+                    // Covered by parse_assignment
+                    continue;
+                },
                 Token::Keyword(Keywords::RETURN) =>
                     match context {
                         ParseContext::Function => {
@@ -219,8 +219,7 @@ impl Parser {
                             }
                         },
                         ParseContext::Function => {
-                            // TODO: Check that the return environment has been constructed and error otherwise
-                            todo!()
+                            continue;
                         },
                         ParseContext::FunctionReturn => {
                             return Ok(current_env.clone());
@@ -228,16 +227,42 @@ impl Parser {
                     }
                 },
                 Token::EOF => {
-                    // Only valid in the global environment, every other occurrence is an error
-                    if parent.is_none() {
-                        return Ok(current_env.clone());
-                    } else {
-                        return Err(ParserError::UnexpectedEOF(pos, self.line));
+                    match context {
+                        ParseContext::FunctionReturn => {
+                            // Return statements can finish on EOF
+                            return Ok(current_env);
+                        },
+                        ParseContext::Normal if parent.is_none() => {
+                            // Global env can finish on EOF
+                            return Ok(current_env);
+                        },
+                        ParseContext::Normal => {
+                            // Non-global env cannot finish on EOF
+                            return Err(ParserError::UnexpectedEOF(pos, self.line));
+                        },
+                        ParseContext::Function => {
+                            // Functions cannot finish without return statements
+                            return Err(ParserError::MissingReturnStatement(pos, self.line, "".into()))
+                        },
+                        ParseContext::Operation => {
+                            // Operations cannot finish on EOF
+                            return Err(ParserError::UnexpectedEOF(pos, self.line));
+                        }
                     }
                 },
             }
         }
-        Err(ParserError::UnclosedEnvironment(self.line))
+
+        // Check if EOF token was consumed by one of the valid contexts
+        match context {
+            ParseContext::Normal if parent.is_none() => {
+                return Ok(current_env);
+            },
+            ParseContext::FunctionReturn => {
+                return Ok(current_env);
+            },
+            _ => Err(ParserError::UnclosedEnvironment(self.line))
+        }
     }
 
     /// Parse an assignment operation
@@ -420,19 +445,18 @@ impl Parser {
     /// 
     /// Also errors if the parser hits EOF while constructing the let statement (but currently not informatively!)
     fn construct_let_statement(&mut self, parent_env: &Option<Rc<AstNode>>, id: &Rc<str>, context: ParseContext) -> Result<AstNode, ParserError> {
-        // Create a new Let object as mutable here
         let mut result = AstNode::Let {
             name: id.clone(),
             value: None,
             inherit: None
         };
 
-        // TODO: Refactor me into construct_statement_body or something similar (I handle both regular let statements and function let statements)
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
                 Token::Keyword(Keywords::INHERIT) => {
                     let inheritance = self.parse_inherit_clause()?; 
+
                     // Modify the mutable Let object from above to contain the inheritance clause on the inherit element
                     result.set_field::<AstNode>(|v| {
                         if let AstNode::Let{ inherit, .. } = v {
@@ -444,12 +468,7 @@ impl Parser {
                 },
                 Token::Operator(op) => {
                     if *op == Operators::Other(OtherOperators::ASSIGNMENT) {
-                        // TODO: Check whether ParseContext::Normal or ::Function here with a match on ParseFunction
                         let expr: AstNode = self.parse_environment(parent_env.clone(), Some(id.clone()), context)?;
-
-                        // If we are ::Function, let_env has to be wrapped inside AstNode::Function{body} before setting to result
-                        // We also then need to add fn_clause from the calling context into AstNode::Function{params}
-                        // Finally, somewhere, we need to match on Keyword::RETURN and construct a new Environment, which is wrapped into AstNode::Function(r#return)
                         
                         let let_env: Rc<AstNode>;
                         if expr.is_single_element_env() {
@@ -1012,7 +1031,6 @@ mod tests {
     // Function tests
     #[test]
     fn minimal_function_assignment() {
-        // Returns an integer on one line
         let tokens = vec![
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
@@ -1171,23 +1189,203 @@ mod tests {
     }
 
     #[test]
-    fn function_decl_with_wildcard_argument() {
-        // Takes wildcard argument
-    }
-
-    #[test]
     fn function_decl_with_inheritance() {
-        // Inherits two elements
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Keyword(Keywords::FUN),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::Keyword(Keywords::INHERIT),
+            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::Identifier("x".into()),
+            Token::Comma,
+            Token::Identifier("y".into()),
+            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Keyword(Keywords::RETURN),
+            Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        let global_env = Rc::new(AstNode::Environment {
+            name: None,
+            bindings: vec![],
+            parent: None,
+            scope: EnvScope::GLOBAL,
+        });
+
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "foo".into(),
+                value: Some(Rc::new(AstNode::Function {
+                    params: Rc::new(AstNode::FunctionArgs(vec![])),
+                    body: Rc::new(AstNode::Environment {
+                        name: Some("foo".into()),
+                        bindings: vec![],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    }),
+                    r#return: Rc::new(AstNode::Environment {
+                        name: None,
+                        bindings: vec![Rc::new(AstNode::Integer(5))],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    })
+                })),
+                inherit: Some(Rc::new(AstNode::Inherit {
+                    names: Some(vec![
+                        "x".into(),
+                        "y".into()
+                    ])
+                })),
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
     }
 
     #[test]
     fn function_decl_with_wildcard_inheritance() {
-        // Inherits wildcard
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Keyword(Keywords::FUN),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::Keyword(Keywords::INHERIT),
+            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
+            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Keyword(Keywords::RETURN),
+            Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        let global_env = Rc::new(AstNode::Environment {
+            name: None,
+            bindings: vec![],
+            parent: None,
+            scope: EnvScope::GLOBAL,
+        });
+
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "foo".into(),
+                value: Some(Rc::new(AstNode::Function {
+                    params: Rc::new(AstNode::FunctionArgs(vec![])),
+                    body: Rc::new(AstNode::Environment {
+                        name: Some("foo".into()),
+                        bindings: vec![],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    }),
+                    r#return: Rc::new(AstNode::Environment {
+                        name: None,
+                        bindings: vec![Rc::new(AstNode::Integer(5))],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    })
+                })),
+                inherit: Some(Rc::new(AstNode::Inherit {
+                    names: None
+                })),
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
     }
 
     #[test]
     fn function_decl_with_extensive_body() {
         // Two assignments and one calculation, returned as an object
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Keyword(Keywords::FUN),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("1".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("y".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("2".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::Keyword(Keywords::RETURN),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
+            Token::Identifier("y".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        let global_env = Rc::new(AstNode::Environment {
+            name: None,
+            bindings: vec![],
+            parent: None,
+            scope: EnvScope::GLOBAL,
+        });
+
+        assert_eq!(ast, AstNode::Environment{
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "foo".into(),
+                value: Some(Rc::new(AstNode::Function {
+                    params: Rc::new(AstNode::FunctionArgs(vec![])),
+                    body: Rc::new(AstNode::Environment {
+                        name: Some("foo".into()),
+                        bindings: vec![
+                            Rc::new(AstNode::Let {
+                                name: "x".into(),
+                                value: Some(Rc::new(AstNode::Integer(1))),
+                                inherit: None,
+                            }),
+                            Rc::new(AstNode::Let {
+                                name: "y".into(),
+                                value: Some(Rc::new(AstNode::Integer(2))),
+                                inherit: None,
+                            })
+                        ],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    }),
+                    r#return: Rc::new(AstNode::Environment {
+                        name: None,
+                        bindings: vec![
+                            Rc::new(AstNode::BinaryOp {
+                                left: Rc::new(AstNode::Identifier("x".into())),
+                                operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+                                right: Rc::new(AstNode::Identifier("y".into()))
+                            })
+                        ],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    }),
+                })),
+                inherit: None,
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL,
+        });
     }
 
     #[test]
@@ -1195,6 +1393,65 @@ mod tests {
         // Takes two arguments
         // Does one calculation with the arguments
         // Returns the calculation as an object
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Keyword(Keywords::FUN),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::Identifier("x".into()),
+            Token::Comma,
+            Token::Identifier("y".into()),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Keyword(Keywords::RETURN),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
+            Token::Identifier("y".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        let global_env = Rc::new(AstNode::Environment {
+            name: None,
+            bindings: vec![],
+            parent: None,
+            scope: EnvScope::GLOBAL,
+        });
+
+        assert_eq!(ast, AstNode::Environment{
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "foo".into(),
+                value: Some(Rc::new(AstNode::Function {
+                    params: Rc::new(AstNode::FunctionArgs(vec![
+                        Rc::new(AstNode::Identifier("x".into())),
+                        Rc::new(AstNode::Identifier("y".into()))
+                    ])),
+                    body: Rc::new(AstNode::Environment {
+                        name: Some("foo".into()),
+                        bindings: vec![],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    }),
+                    r#return: Rc::new(AstNode::Environment {
+                        name: None,
+                        bindings: vec![
+                            Rc::new(AstNode::BinaryOp {
+                                left: Rc::new(AstNode::Identifier("x".into())),
+                                operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+                                right: Rc::new(AstNode::Identifier("y".into()))
+                            })
+                        ],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    }),
+                })),
+                inherit: None,
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL,
+        });
     }
 
     #[test]
