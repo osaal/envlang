@@ -1783,6 +1783,82 @@ mod tests {
         });
     }
 
+    #[test]
+    fn function_call_with_one_parameter() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::Identifier("y".into()),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![
+                Rc::new(AstNode::Let {
+                    name: "x".into(),
+                    value: Some(Rc::new(AstNode::FunctionCall {
+                        id: Rc::new(AstNode::Identifier("foo".into())),
+                        args: Rc::new(AstNode::FunctionArgs(
+                            vec![
+                                Rc::new(AstNode::Identifier("y".into()))
+                            ]
+                        ))
+                    })),
+                    inherit: None,
+                })
+            ],
+            parent: None,
+        });
+    }
+
+    #[test]
+    fn function_call_with_multiple_parameters() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::Identifier("y".into()),
+            Token::Comma,
+            Token::Identifier("z".into()),
+            Token::Comma,
+            Token::Identifier("a".into()),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![
+                Rc::new(AstNode::Let {
+                    name: "x".into(),
+                    value: Some(Rc::new(AstNode::FunctionCall {
+                        id: Rc::new(AstNode::Identifier("foo".into())),
+                        args: Rc::new(AstNode::FunctionArgs(
+                            vec![
+                                Rc::new(AstNode::Identifier("y".into())),
+                                Rc::new(AstNode::Identifier("z".into())),
+                                Rc::new(AstNode::Identifier("a".into())),
+                            ]
+                        ))
+                    })),
+                    inherit: None,
+                })
+            ],
+            parent: None,
+        });
+    }
+
     // Error cases
     // TODO: Fix this test once the error handling is fixed to be more informative
     #[test]

@@ -22,7 +22,7 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 - `ParseContext` now implements `ToString`.
 - Added new error variants to `ParserError` related to function call parsing.
-- Added unit test for function calls.
+- Added unit tests for function calls.
 
 ### Version 0.5.9
 
