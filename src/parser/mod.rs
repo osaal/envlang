@@ -1,5 +1,27 @@
+//! The Envlang parser
+//! 
+//! The parser takes a lexed [`Token`] vector from the lexer and turns it into an Abstract Syntax Tree of `AstNode`s.
+//! 
+//! This AST is then intended to be validated.
+//! 
+//! # Documentation notes
+//! 
+//! Unless specified, phrases such as "followed by", "enclosed by", "surrounded by", etc., allow for unlimited whitespace around the syntactical object in question.
+//! 
+//! # Error handling
+//! 
+//! The parser provides numerous different error types enumerated in [`ParserError`].
+//! 
+//! All errors include position information for reporting.
+//! 
+//! [`Token`]: ../lexer/enum.Token.html
+//! [`ParserError`]: ./enum.ParserError.html
+
 mod astnode;
 mod error;
+
+pub use astnode::AstNode;
+pub use error::ParserError;
 
 use crate::lexer::Token;
 use crate::symbols::{Keywords, Booleans, Operators, ArithmeticOperators, OtherOperators};
@@ -7,9 +29,11 @@ use crate::environment::EnvScope;
 use std::rc::Rc;
 use std::borrow::Borrow;
 
-pub use astnode::AstNode;
-pub use error::ParserError;
-
+/// Envlang parser context
+/// 
+/// The `ParseContext` enum represents the context in which the parser is operating at any given time.
+/// 
+/// The context changes how the parser handles some special tokens, e.g., the EOF token.
 #[derive(Debug, PartialEq, Clone)]
 enum ParseContext {
     Normal,
@@ -18,6 +42,25 @@ enum ParseContext {
     FunctionReturn,
 }
 
+/// Envlang parser
+/// 
+/// The `Parser` struct holds the [`Token`] vector from the lexer, as well as the index of the currently lexed token and the line number.
+/// 
+/// The line number is calculated from the amount of recognised line-breaks, and is one-indexed.
+/// 
+/// # Panics
+/// 
+/// The parser does not panic, as it instead converts all invalid states into [`ParserError`] objects.
+/// 
+/// # Errors
+/// 
+/// All parser methods return `Result<AstNode, ParserError>` types. The errors contain a human-readable description of the intended use, as well as information on:
+/// - The token index where the error was triggered.
+/// - The error-triggering token (in most cases).
+/// - The line number from the input source code.
+/// 
+/// [`Token`]: ../lexer/enum.Token.html
+/// [`ParserError`]: ./enum.ParserError.html
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
@@ -25,6 +68,15 @@ pub struct Parser {
 }
 
 impl Parser {
+    /// Parser initialization
+    /// 
+    /// Initializes a new Parser with a given input vector.
+    /// 
+    /// # Arguments
+    /// * `tokens` - A vector of `Token`s to be parsed.
+    /// 
+    /// # Returns
+    /// A `Parser` ready for parsing iteration.
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens,
@@ -33,21 +85,20 @@ impl Parser {
         }
     }
 
-    /// Get the current token in queue
+    /// Get the `current` Token in queue
     fn peek(&self) -> Option<&Token> { self.tokens.get(self.current) }
 
-    /// Increment the current token index by 1
+    /// Increment the `current` Token index
     fn next(&mut self) { self.current += 1; }
 
-    /// Get current token and advance the index by 1
+    /// Get current Token and increment the `current` Token index
     /// 
-    /// Returns the current token and its position in the token vector
-    /// 
-    /// If the current token is the last token in the vector, returns None
+    /// Returns `None` if the `current` token is the last token in the vector.
     fn advance(&mut self) -> Option<(usize, Rc<Token>)> {
         if self.current < self.tokens.len() {
             let pos = self.current;
-            let ch = Rc::new(self.peek().unwrap().clone()); // Safe to unwrap because we checked the length
+            // Safety: Length is guaranteed to be valid
+            let ch = Rc::new(self.peek().unwrap().clone());
             self.next();
             return Some((pos, ch));
         } else {
@@ -57,36 +108,61 @@ impl Parser {
 
     /// Parse the tokens into an AST
     /// 
-    /// Returns an AST node representing the global environment of the program
+    /// Returns an `AstNode` representing the global environment of the program.
     /// 
-    /// The global environment will contain every element defined in the source code
+    /// The global environment will contain every element defined in the source code.
+    /// 
+    /// The parsing context is always set to `ParseContext::Normal`.
     /// 
     /// # Errors
-    /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
+    /// Errors are returned as `ParserError` from the parser submethods
     pub fn parse(&mut self) -> Result<AstNode, ParserError> { self.parse_environment(None, None, ParseContext::Normal) }
 
-    /// Parse an environment
+    /// Parser submethod: Environment
     /// 
-    /// Returns an AST node containing an Environment
+    /// Returns an [`AstNode::Environment`] representing an environment.
+    /// 
+    /// # Arguments
+    /// * `parent`: An `Option`al reference-counted pointer to the parent environment, or `None` for the global environment.
+    /// * `name`: An `Option`al reference-counted pointer to the name of the environment (as an `str`), or `None` for an unnamed environment.
+    /// * `context`: The [`ParseContext`] within which the environment is being parsed.
+    /// 
+    /// # The EOF token
+    /// 
+    /// The end-of-file token [`Token::EOF`] is used to mark the finished parsing of a complete program.
+    /// 
+    /// The token is only a valid final token in two contexts:
+    /// * A return statement (as this implies that the final element in the global environment was a function declaration, which is valid albeit useless.)
+    /// * The global environment
+    /// 
+    /// In all other contexts, meeting the EOF token represents some form of syntax error.
+    /// 
+    /// However, since the type of syntax error cannot easily be ascertained, the EOF token is treated as a generic error (see below).
     /// 
     /// # Errors
-    /// Errors are returned as `ParserError` from the parser submethods labelled `parser_`
+    /// * Any errors bubbled up from `parse_environment`, `parse_identifier`, `parse_number`, `parse_string`, `parse_assignment`, and `parse_operator`.
+    /// * `UnexpectedReturn`: The return keyword was used in a non-function context.
+    /// * `BinaryOpWithNoLHS`: A binary operation lacked a left-hand side. This may occur with arithmetic operations or accessions.
+    /// * `UnexpectedEOF`: A non-global normal environment or an operation encountered the EOF token.
+    /// * `MissingReturnStatement`: A function environment encountered the EOF token.
+    /// * `UnclosedEnvironment`: EOF token was consumed before a non-global, non-function-return environment finished parsing.
     fn parse_environment(&mut self, parent: Option<Rc<AstNode>>, name: Option<Rc<str>>, context: ParseContext) -> Result<AstNode, ParserError> {
-        // We create a temporary environment to handle parentage
+        // Create a temporary environment to handle parentage
+        // TODO: Scope should be removed, it is superfluous since parent already encodes scope
         let mut current_env: AstNode = AstNode::Environment {
             name: name.clone(),
             bindings: Vec::new(),
             parent: parent.clone(),
             scope: if parent.is_none() { EnvScope::GLOBAL } else { EnvScope::LOCAL }
-        }; // TODO: Scope should be removed, it is superfluous since parent already encodes scope
+        };
 
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::LeftBrace(_) => {
-                    // Global env is constructed by Token::EOF
+                    // Ignore extra left brace in the global environment
                     if parent.is_none() { continue; };
 
-                    // Left braces are only used in normal ParseContext's, and ignored otherwise
+                    // Create a sub-environment if `ParseContext::Normal`
                     if context == ParseContext::Normal {
                         let sub_env: AstNode = self.parse_environment(
                             Some(Rc::new(current_env.clone())),
@@ -101,7 +177,8 @@ impl Parser {
                     }
                 },
                 Token::RightBrace(_) => {
-                    if parent.is_none() { continue; };  // Global env is constructed by Token::EOF
+                    // Ignore extra right brace in the global environment
+                    if parent.is_none() { continue; };
                     return Ok(current_env);
                 },
                 Token::LeftParen(_) => continue,        // Covered by parse_inherit_clause
@@ -109,6 +186,12 @@ impl Parser {
                 Token::Comma => continue,               // Covered by parse_inherit_clause and parse_function_clause
                 Token::LeftBracket(_) => continue,      // Covered by parse_function_clause
                 Token::RightBracket(_) => continue,     // Covered by parse_function_clause
+                Token::Keyword(Keywords::INHERIT) => {  // Covered by construct_let_statement
+                    continue;
+                },
+                Token::Keyword(Keywords::FUN) => {      // Covered by parse_assignment
+                    continue;
+                },
                 Token::Identifier(id) => {
                     let node: AstNode = self.parse_identifier(&id)?;
                     if let AstNode::Environment { ref mut bindings, .. } = current_env {
@@ -143,15 +226,8 @@ impl Parser {
                         bindings.push(Rc::new(node));
                     }
                 },
-                Token::Keyword(Keywords::INHERIT) => {
-                    // Covered by construct_let_statement
-                    continue;
-                },
-                Token::Keyword(Keywords::FUN) => {
-                    // Covered by parse_assignment
-                    continue;
-                },
                 Token::Keyword(Keywords::RETURN) =>
+                    // Return keyword is only valid in ParseContext::Function
                     match context {
                         ParseContext::Function => {
                             let return_env = self.parse_environment(
@@ -168,8 +244,7 @@ impl Parser {
                         },
                         _ => return Err(ParserError::UnexpectedReturn(pos, self.line)),
                     }
-                Token::Whitespace(ws) =>
-                    self.parse_whitespace(ws),
+                Token::Whitespace(ws) => self.parse_whitespace(ws),
                 Token::FullStop(op) => {
                     let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.pop()
@@ -265,12 +340,17 @@ impl Parser {
         }
     }
 
-    /// Parse an assignment operation
+    /// Parser submethod: Assignment
     /// 
-    /// Returns an AST node representing the assignment operation
+    /// Returns an `AstNode::Let` representing an assignment operation.
+    /// 
+    /// # Arguments
+    /// * `parent_env`: An `Option`al reference-counted pointer to the parent environment, or `None` for the global environment.
     /// 
     /// # Errors
-    /// Returns an error if the assignment operation is invalid
+    /// * Any error bubbled up from `parse_function_declaration` or `construct_let_statement`.
+    /// * `MissingLetIdentifier`: The "let" keyword was not followed by a valid identifier or the "fun" keyword.
+    /// * `ParserLogicError`: The call to `parse_assignment` was triggered from the final token in the token vector.
     fn parse_assignment(&mut self, parent_env: Option<Rc<AstNode>>) -> Result<AstNode, ParserError> {
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
@@ -287,6 +367,21 @@ impl Parser {
         Err(ParserError::ParserLogicError(self.current, self.line))
     }
 
+    /// Parser submethod: Function declaration
+    /// 
+    /// Returns an `AstNode::Function` representing a function declaration.
+    /// 
+    /// # Arguments
+    /// * `parent_env`: An `Option`al reference-counted pointer to the parent environment, or `None` for the global environment.
+    /// 
+    /// # Errors
+    /// * Any errors bubbled up from `parse_function_clause`, `parse_inherit_clause`, and `parse_environment`.
+    /// * `MissingFunctionName`: The "fun" keyword was not followed by a valid identifier.
+    /// * `MissingFunctionArgs`: The function identifier was not immediately (no whitespace allowed) followed by the left bracket symbol for function arguments.
+    /// * `InvalidTokenInFnSignature`: The function arguments were not followed by either an "inherit" clause or the assignment operator.
+    /// * `MissingReturnStatement`: The return statement parsing failed without error, suggesting that there was no return statement in the source code.
+    /// * `MissingAssignmentOp`: The function arguments, with an optional "inherit" clause, were not followed by an assignment operator.
+    /// * `MissingFunctionBody`: The parsing of the function body immediately following the assignment operator failed without error, suggesting that there is no function body.
     fn parse_function_declaration(&mut self, parent_env: &Option<Rc<AstNode>>) -> Result<AstNode, ParserError> {
         // Temporary variables to store required components (ordered by Envlang syntax for ease of reading)
         let mut fn_name: Option<Rc<str>> = None;
@@ -390,6 +485,16 @@ impl Parser {
         })
     }
 
+    /// Parser submethod: Function argument clause
+    /// 
+    /// Returns an `AstNode::FunctionArgs` representing the arguments of a function.
+    /// 
+    /// # Errors
+    /// * Any errors bubbled up from `parse_identifier`.
+    /// * `DoubleFunArgBracket`: Two (or more) left brackets in the function argument clause.
+    /// * `UnclosedArgumentClause`: EOF token met before finishing the argument clause.
+    /// * `InvalidFunArgToken`: Any other token than identifiers, commas, or the EOF token met before finishing the argument clause.
+    /// * `ParserLogicError`: Parser somehow finished the token stream without errors (catch-all for seemingly impossible scenarios).
     fn parse_function_clause(&mut self) -> Result<AstNode, ParserError> {
         let mut result = AstNode::FunctionArgs(Vec::new());
         while let Some((pos, token)) = self.advance() {
@@ -436,14 +541,20 @@ impl Parser {
         return Err(ParserError::ParserLogicError(self.current, self.line));
     }
 
-    /// Construct a let statement
+    /// Parser submethod: Contents of an assignment
     /// 
-    /// Returns an AST node representing the let statement
+    /// Returns an `AstNode::Let` representing the assignment.
+    /// 
+    /// # Arguments
+    /// * `parent_env`: An `Option`al reference-counted pointer to the parent environment, or `None` for the global environment.
+    /// * `id`: A reference-counted pointer to the name of the assignment.
+    /// * `context`: A `ParseContext` representing the context within which the assignment is done.
     /// 
     /// # Errors
-    /// Returns an error if the let statement is using a non-assignment operator, or if the assignment operator is missing
-    /// 
-    /// Also errors if the parser hits EOF while constructing the let statement (but currently not informatively!)
+    /// * Any errors bubbled up from `parse_inherit_clause`, and `flatten_environment`.
+    /// * `InvalidAssignmentOp`: Any other operator than the assignment operator encountered after either an identifier or an inheritance clause.
+    /// * `MissingAssingmentOp`: No assignment operator was found.
+    /// * `ParserLogicError`: Parser somehow finished the token stream without errors (catch-all for seemingly impossible scenarios).
     fn construct_let_statement(&mut self, parent_env: &Option<Rc<AstNode>>, id: &Rc<str>, context: ParseContext) -> Result<AstNode, ParserError> {
         let mut result = AstNode::Let {
             name: id.clone(),
@@ -495,6 +606,16 @@ impl Parser {
         Err(ParserError::ParserLogicError(self.current, self.line))
     }
 
+    /// Parser submethod: Inheritance clause
+    /// 
+    /// Returns an `AstNode::Inherit` representing the inheritance clause.
+    /// 
+    /// This is a bottom-level submethod and does not call other submethods.
+    /// 
+    /// # Errors
+    /// * `DoubleInheritanceParen`: Two (or more) left parentheses encountered in the inheritance clause.
+    /// * `WildcardAndElements`: The inheritance clause contained both a wildcard and one (or more) inheritance element(s).
+    /// * `InvalidInheritanceToken`: The inheritance clause contained some other token than parentheses, commas, the wildcard operator, or identifiers.
     fn parse_inherit_clause(&mut self) -> Result<AstNode, ParserError> {
         let mut inheritance_arg = AstNode::Inherit { names: Some(Vec::new()) };
         while let Some((pos, token)) = self.advance() {
@@ -544,31 +665,57 @@ impl Parser {
         return Ok(inheritance_arg);
     }
     
-    /// Parse a string literal
+    /// Parser submethod: String literal
     /// 
-    /// Returns an AST node containing the string literal
+    /// Returns an `AstNode::String` containing the string literal.
+    /// 
+    /// This is a bottom-level submethod and does not call other submethods.
+    /// 
+    /// # Arguments
+    /// * `string`: A reference-counted pointer to the string literal (as `str`) to be converted.
+    /// 
+    /// # Panics
+    /// * Failed cloning of string pointer
+    /// * Failed wrapping of string pointer clone into `AstNode::String`
     fn parse_string(&mut self, string: &Rc<str>) -> Result<AstNode, ParserError> { Ok(AstNode::String(string.clone())) }
 
-    /// Parse an identifier
+    /// Parser submethod: Identifier
     /// 
-    /// Returns an AST node containing the identifier
+    /// Returns an `AstNode::Identifier` containing the identifier.
+    /// 
+    /// This is a bottom-level submethod and does not call other submethods.
+    /// 
+    /// # Arguments
+    /// * `id`: A reference-counted pointer to the identifier (as `str`) to be converted.
+    /// 
+    /// # Panics
+    /// * Failed cloning of identifier pointer.
+    /// * Failed wrapping of identifier pointer clone into `AstNode::Identifier`.
     fn parse_identifier(&mut self, id: &Rc<str>) -> Result<AstNode, ParserError> { Ok(AstNode::Identifier(id.clone())) }
 
-    /// Parse a whitespace token
+    /// Parser submethod: Whitespace
     /// 
-    /// Increments the line counter if the whitespace is a new-line character
+    /// Increments the line counter if the whitespace is a new-line character.
     /// 
-    /// In other cases, does nothing
+    /// This is a bottom-level submethod and does not call other submethods.
+    /// 
+    /// # Arguments
+    /// * `ws`: A reference-counted pointer to the whitespace (as `str`) to be converted.
+    /// 
+    /// The method does not panic or return errors.
     fn parse_whitespace(&mut self, ws: &Rc<str>) { match ws.borrow() { "\r\n" | "\n" => self.line += 1, _ => () }}
 
-    /// Parse an operator
+    /// Parser submethod: Binary operation
     /// 
-    /// Parses a binary operation and returns an AST node containing the operation
+    /// Returns an `AstNode::BinaryOp` representing the binary operation.
     /// 
-    /// Wraps around separate functions for groups of binary operations
+    /// # Arguments
+    /// * `parent_env`: An `Option`al reference-counted pointer to the parent environment, or `None` for the global environment.
+    /// * `op`: A reference to the operator enum variant.
+    /// * `prev`: A reference-counted pointer to the previous (left-hand-side) element (as `AstNode`).
     /// 
     /// # Errors
-    /// Method does not error on its own, but carries over errors from its sub-methods.
+    /// * Any errors bubbled up from `parse_accessor_op`, and `parse_generic_op`.
     fn parse_operator(&mut self, parent_env: Option<Rc<AstNode>>, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
         match op {
             Operators::Other(OtherOperators::ACCESSOR) => {
@@ -580,16 +727,18 @@ impl Parser {
         }
     }
 
-    /// Parse a generic binary operation
+    /// Parser submethod: Generic binary operation
     /// 
-    /// Parses operations such as arithmetics and returns an AST node containing the operation
+    /// Returns an `AstNode::BinaryOp` representing a generic, non-accession binary operation.
     /// 
-    /// Single-item RHS environments will be flattened into the items they represent
+    /// # Arguments
+    /// * `parent_env`: An `Option`al reference-counted pointer to the parent environment, or `None` for the global environment.
+    /// * `op`: A reference to the operator enum variant.
+    /// * `prev`: A reference-counted pointer to the previous (left-hand-side) element (as `AstNode`).
     /// 
     /// # Errors
-    /// Errors if the file ends while in the function
-    /// 
-    /// All other errors are carried from `parse_environment`
+    /// * Any errors bubbled up from `parse_environment`.
+    /// * `UnexpectedEOF`: The token stream was unexpectedly empty.
     fn parse_generic_op(&mut self, parent_env: Option<Rc<AstNode>>, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
         if let Some(_) = self.peek() {
             let next_node: AstNode = self.parse_environment(parent_env, None, ParseContext::Operation)?;
@@ -615,12 +764,21 @@ impl Parser {
         }
     }
     
-    /// Parse an accession operation
+    /// Parser submethod: Accession operation
     /// 
-    /// Parses the accession operation `x.y` and returns an AST node representing the operation
+    /// Returns an `AstNode::BinaryOp` representing the accession operation.
+    /// 
+    /// This is a bottom-level submethod and does not call other submethods.
+    /// 
+    /// # Arguments
+    /// * `op`: A reference to the operator enum variant.
+    /// * `prev`: A reference-counted pointer to the previous (left-hand-side) element (as `AstNode`).
     /// 
     /// # Errors
-    /// Errors occur if the RHS is not an identifier or environment, if the LHS is not an identifier, or if the file unexpectedly ends whilst in the method.
+    /// * `ParserLogicError`: The operator given to the method was not an accessor operator (indicating an implementation error in Envlang).
+    /// * `InvalidAccessionTarget`: The accessor operator was used on any non-identifier left-hand-side operand.
+    /// * `UnexpectedEOF`: The token stream unexpectedly ended.
+    /// * `InvalidAccessionSource`: The accessor operator was used on a right-hand-side operand being something else than an identifier or environment.
     fn parse_accessor_op(&mut self, op: &Operators, prev: &Rc<AstNode>) -> Result<AstNode, ParserError> {
         // Exit early if the operator is not an accessor
         match op {
@@ -648,12 +806,19 @@ impl Parser {
         }
     }
     
-    /// Parse a number-like type
+    /// Parser submethod: Numbers
     /// 
-    /// Parses a number or a float and returns an AST node containing the number
+    /// Returns an `AstNode::Integer` or `AstNode::Float` representing the number type and data.
+    /// 
+    /// This is a bottom-level submethod and does not call other submethods.
+    /// 
+    /// # Arguments
+    /// * `start_pos`: An unsigned integer representing the starting index of the number in the token stream.
+    /// * `start_token`: A reference to the starting token (as `Token`).
     /// 
     /// # Errors
-    /// Returns an error if the number is malformed through multiple decimal points, or if the starting token is not a number or fullstop
+    /// * `NotANumber`: The declared number does not start with a number or full-stop, or a parsed number does not map into `isize` or `f64`.
+    /// * `MalformedNumber`: The declared number contains two (or more) full-stops.
     fn parse_number(&mut self, start_pos: usize, start_token: &Token) -> Result<AstNode, ParserError> {
         let mut numstr: String = String::new();
         // Valid numbers start with a number or a full stop (if float)
@@ -702,18 +867,27 @@ impl Parser {
     }
 }
 
-/// Flatten an environment into a single binding
+/// Flatten an environment
 /// 
-/// Takes a single-element environment and returns its binding as a pointer
+/// Takes a single-element environment and returns its binding as a pointer.
 /// 
-/// # Safety
+/// # PLANNED CHANGES
+/// This associated function will be made a method in the future, since it utilizes parser information for error handling.
 /// 
-/// The caller must make sure that the AstNode::Environment has exactly zero or one binding.
-/// If the AstNode::Environment has more than one binding, the function only returns the first binding.
+/// # Arguments
+/// * `expr`: A reference to the `AstNode` which is to be flattened.
+/// * `pos`: The position of the parser.
+/// * `line`: The line number of the parser.
+/// * `token`: A reference to the `Token` that the parser is currently at.
+/// 
+/// # Guarantees
+/// The caller must make sure that the `AstNode::Environment` has exactly zero or one binding.
+/// 
+/// If the `AstNode::Environment` has more than one binding, the function only returns the first binding.
 /// 
 /// # Errors
-/// 
-/// Errors if `expr` is not an AstNode::Environment, or if the `bindings` vector is empty
+/// * `EmptyEnv`: The supplied environment has zero bindings.
+/// * `NotAnEnvironment`: The supplied element is not an environment.
 fn flatten_environment(expr: &AstNode, pos: usize, line: usize, token: &Token) -> Result<Rc<AstNode>, ParserError> {
     match expr {
         AstNode::Environment{ bindings, .. } => {
