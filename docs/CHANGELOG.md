@@ -13,6 +13,7 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 #### Major changes
 
 - Unit tests suites for parsing and lexing have been moved into their own files in corresponding directories.
+- The associated function `flatten_environment` is now a method.
 
 #### Minor changes
 

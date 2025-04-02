@@ -577,7 +577,7 @@ impl Parser {
                         
                         let let_env: Rc<AstNode>;
                         if expr.is_single_element_env() {
-                            let_env = flatten_environment(&expr, pos, self.line, &token)?;
+                            let_env = self.flatten_environment(&expr, pos, &token)?;
                         } else {
                             let_env = Rc::new(expr);
                         }
@@ -869,6 +869,34 @@ impl Parser {
             .map_err(|_| ParserError::NotANumber(self.current, self.line, numstr))
     }
 
+    /// Takes a single-element environment and returns its binding as a pointer.
+    /// 
+    /// # Arguments
+    /// * `expr`: A reference to the `AstNode` which is to be flattened.
+    /// * `pos`: The position of the parser.
+    /// * `line`: The line number of the parser.
+    /// * `token`: A reference to the `Token` that the parser is currently at.
+    /// 
+    /// # Guarantees
+    /// The caller must make sure that the [`AstNode::Environment`] has exactly zero or one binding.
+    /// 
+    /// If the `AstNode::Environment` has more than one binding, the function only returns the first binding.
+    /// 
+    /// # Errors
+    /// * [`ParserError::EmptyEnv`]: The supplied environment has zero bindings.
+    /// * [`ParserError::NotAnEnvironment`]: The supplied element is not an environment.
+    fn flatten_environment(&self, expr: &AstNode, pos: usize, token: &Token) -> Result<Rc<AstNode>, ParserError> {
+        match expr {
+            AstNode::Environment{ bindings, .. } => {
+                if bindings.len() == 0 {
+                    return Err(ParserError::EmptyEnv(pos, self.line, token.to_string()));
+                }
+                return Ok(bindings[0].clone());
+            },
+            _ => return Err(ParserError::NotAnEnvironment(pos, self.line, token.to_string()))
+        }
+    }
+
     /// Debugging function to print the next token in the token queue
     #[allow(dead_code)]
     fn debug_next_token(&self) {
@@ -879,36 +907,5 @@ impl Parser {
     #[allow(dead_code)]
     fn debug_token_tuple(&self, pos: usize, token: &Token) {
         println!("Grabbed token at index: {}, token: {:?}", pos, token);
-    }
-}
-
-/// Takes a single-element environment and returns its binding as a pointer.
-/// 
-/// # PLANNED CHANGES
-/// This associated function will be made a method in the future, since it utilizes parser information for error handling.
-/// 
-/// # Arguments
-/// * `expr`: A reference to the `AstNode` which is to be flattened.
-/// * `pos`: The position of the parser.
-/// * `line`: The line number of the parser.
-/// * `token`: A reference to the `Token` that the parser is currently at.
-/// 
-/// # Guarantees
-/// The caller must make sure that the [`AstNode::Environment`] has exactly zero or one binding.
-/// 
-/// If the `AstNode::Environment` has more than one binding, the function only returns the first binding.
-/// 
-/// # Errors
-/// * [`ParserError::EmptyEnv`]: The supplied environment has zero bindings.
-/// * [`ParserError::NotAnEnvironment`]: The supplied element is not an environment.
-fn flatten_environment(expr: &AstNode, pos: usize, line: usize, token: &Token) -> Result<Rc<AstNode>, ParserError> {
-    match expr {
-        AstNode::Environment{ bindings, .. } => {
-            if bindings.len() == 0 {
-                return Err(ParserError::EmptyEnv(pos, line, token.to_string()));
-            }
-            return Ok(bindings[0].clone());
-        },
-        _ => return Err(ParserError::NotAnEnvironment(pos, line, token.to_string()))
     }
 }
