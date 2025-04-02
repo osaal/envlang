@@ -1031,6 +1031,7 @@ mod tests {
     // Function tests
     #[test]
     fn minimal_function_assignment() {
+        // Named function that returns a single element without explicit environment encapsulation
         let tokens = vec![
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
@@ -1080,7 +1081,7 @@ mod tests {
 
     #[test]
     fn function_decl_with_return_env() {
-        // Returns an empty environment
+        // Function that returns an empty explicit environment
         let tokens = vec![
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
@@ -1133,6 +1134,7 @@ mod tests {
 
     #[test]
     fn function_decl_with_arguments() {
+        // Function that takes two arguments and returns a single element without explicit environment encapsulation
         let tokens = vec![
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
@@ -1190,6 +1192,7 @@ mod tests {
 
     #[test]
     fn function_decl_with_inheritance() {
+        // Function that inherits two elements and returns a single element without explicit environment encapsulation
         let tokens = vec![
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
@@ -1252,6 +1255,7 @@ mod tests {
 
     #[test]
     fn function_decl_with_wildcard_inheritance() {
+        // Function that inherits everything and returns a single element without explicit environment encapsulation
         let tokens = vec![
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
@@ -1309,7 +1313,7 @@ mod tests {
 
     #[test]
     fn function_decl_with_extensive_body() {
-        // Two assignments and one calculation, returned as an object
+        // Function whose body assigns two variables and returns an operation without explicit environment encapsulation
         let tokens = vec![
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
@@ -1390,9 +1394,7 @@ mod tests {
 
     #[test]
     fn function_decl_with_body_and_args() {
-        // Takes two arguments
-        // Does one calculation with the arguments
-        // Returns the calculation as an object
+        // Function that takes two arguments and returns an operation without explicit environment encapsulation
         let tokens = vec![
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
@@ -1455,8 +1457,141 @@ mod tests {
     }
 
     #[test]
-    fn complex_function() {
-        // Inherits multiple elements, takes three arguments, does calculations and returns an environment.
+    fn function_decl_with_single_element_return_env() {
+        // Function that returns a single element with environment encapsulation.
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Keyword(Keywords::FUN),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Keyword(Keywords::RETURN),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Number("5".into()),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        let global_env = Rc::new(AstNode::Environment {
+            name: None,
+            bindings: vec![],
+            parent: None,
+            scope: EnvScope::GLOBAL,
+        });
+
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "foo".into(),
+                value: Some(Rc::new(AstNode::Function {
+                    params: Rc::new(AstNode::FunctionArgs(vec![])),
+                    body: Rc::new(AstNode::Environment {
+                        name: Some("foo".into()),
+                        bindings: vec![],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    }),
+                    r#return: Rc::new(AstNode::Environment {
+                        name: None,
+                        bindings: vec![Rc::new(AstNode::Integer(5))],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    })
+                })),
+                inherit: None,
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
+    }
+
+    #[test]
+    fn function_decl_with_large_return_env() {
+        // Function that returns an encapsulated multi-element environment
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Keyword(Keywords::FUN),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Keyword(Keywords::RETURN),
+            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("5".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("y".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("3".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("z".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("1".into()),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        let global_env = Rc::new(AstNode::Environment {
+            name: None,
+            bindings: vec![],
+            parent: None,
+            scope: EnvScope::GLOBAL,
+        });
+
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "foo".into(),
+                value: Some(Rc::new(AstNode::Function {
+                    params: Rc::new(AstNode::FunctionArgs(vec![])),
+                    body: Rc::new(AstNode::Environment {
+                        name: Some("foo".into()),
+                        bindings: vec![],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    }),
+                    r#return: Rc::new(AstNode::Environment {
+                        name: None,
+                        bindings: vec![
+                            Rc::new(AstNode::Let {
+                                name: "x".into(),
+                                value: Some(Rc::new(AstNode::Integer(5))),
+                                inherit: None,
+                            }),
+                            Rc::new(AstNode::Let {
+                                name: "y".into(),
+                                value: Some(Rc::new(AstNode::Integer(3))),
+                                inherit: None,
+                            }),
+                            Rc::new(AstNode::Let {
+                                name: "z".into(),
+                                value: Some(Rc::new(AstNode::Integer(1))),
+                                inherit: None,
+                            })
+                        ],
+                        parent: Some(global_env.clone()),
+                        scope: EnvScope::LOCAL,
+                    })
+                })),
+                inherit: None,
+            })],
+            parent: None,
+            scope: EnvScope::GLOBAL
+        });
     }
 
     // Error cases
