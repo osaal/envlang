@@ -40,7 +40,7 @@ pub enum AstNode {
     // Functions
     Function {                          // Inheritance is covered in the encapsulating Let object
         params: Rc<AstNode>,            // Will be AstNode::FunctionArgs
-        body: Rc<AstNode>,             // TODO: Should be a Rc<AstNode> for API similarity -> Will be an environment
+        body: Rc<AstNode>,              // Will be an environment
         r#return: Rc<AstNode>,          // Will be an environment
     },
     FunctionArgs(Vec<Rc<AstNode>>),     // Vector of AstNode::Identifier's
