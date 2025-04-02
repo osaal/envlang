@@ -31,10 +31,10 @@
     - [x] Implementation
     - [x] Tests
     - [x] Documentation
-- [ ] Parser (started in version 0.5.3)
-    - [ ] Implementation
-    - [ ] Tests
-    - [ ] Documentation
+- [x] Parser (finished in version 0.5.11)
+    - [x] Implementation
+    - [x] Tests
+    - [x] Documentation
 - [ ] Analyzer
     - [ ] Implementation
     - [ ] Tests

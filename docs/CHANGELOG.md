@@ -8,6 +8,16 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.11
+
+#### Major changes
+
+- Unit tests suites for parsing and lexing have been moved into their own files in corresponding directories.
+
+#### Minor changes
+
+- Updated `STRUCTURE.md` and `NEWSTRUCTURE.md` to reflect the finished rewrite.
+
 ### Version 0.5.10
 
 #### Major changes
