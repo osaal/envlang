@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::{environment::EnvScope, symbols::Operators, parser::ParserError};
+use crate::{symbols::Operators, parser::ParserError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstNode {
@@ -15,7 +15,6 @@ pub enum AstNode {
         name: Option<Rc<str>>, // None for anonymous
         bindings: Vec<Rc<AstNode>>,
         parent: Option<Rc<AstNode>>,
-        scope: EnvScope,
     },
 
     // Expressions
@@ -153,14 +152,6 @@ impl AstNode {
         match self {
             AstNode::Environment { parent, .. } => parent.clone(),
             _ => None,
-        }
-    }
-
-    // Get the scope of an environment
-    pub fn get_scope(&self) -> Option<EnvScope> {
-        match self {
-            AstNode::Environment { scope, .. } => Some(scope.clone()),
-            _ => None, // This should never occur!
         }
     }
 

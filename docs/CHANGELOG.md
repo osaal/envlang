@@ -12,6 +12,8 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 #### Major changes
 
+- The old parser has been removed. Its functionality was deprecated several versions ago.
+- `AstNode::Environment` variants no longer take `scope: EnvScope`. The `EnvScope` enum has subsequently been removed.
 - Lexer now recognises the `return` keyword as well as parameter declarations in function signatures (`[]`).
 - The `AstNode::Function` variant now takes a `r#return` field (escaped to avoid collisions with Rust's reserved keywords) with an `Rc<AstNode>` to whatever is to be returned from the function.
 - The `AstNode::Function` variant no longer takes the `inherit` field. Inherited elements are captured in the surrounding `Let` variant instead.

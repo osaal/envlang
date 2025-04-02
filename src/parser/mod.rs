@@ -25,7 +25,6 @@ pub use error::ParserError;
 
 use crate::lexer::Token;
 use crate::symbols::{Keywords, Booleans, Operators, ArithmeticOperators, OtherOperators};
-use crate::environment::EnvScope;
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -132,12 +131,10 @@ impl Parser {
     /// * [`ParserError::UnclosedEnvironment`]: EOF token was consumed before a non-global, non-function-return environment finished parsing.
     fn parse_environment(&mut self, parent: Option<Rc<AstNode>>, name: Option<Rc<str>>, context: ParseContext) -> Result<AstNode, ParserError> {
         // Create a temporary environment to handle parentage
-        // TODO: Scope should be removed, it is superfluous since parent already encodes scope
         let mut current_env: AstNode = AstNode::Environment {
             name: name.clone(),
             bindings: Vec::new(),
             parent: parent.clone(),
-            scope: if parent.is_none() { EnvScope::GLOBAL } else { EnvScope::LOCAL }
         };
 
         while let Some((pos, token)) = self.advance() {
@@ -427,7 +424,6 @@ impl Parser {
                                 name: fn_name.clone(),
                                 bindings: bindings[..bindings.len()-1].to_vec(),
                                 parent: parent_env.clone(),
-                                scope: EnvScope::LOCAL,
                             });
                             // I apologize for the following disgusting pointer indirection...
                             if let AstNode::Environment { bindings: return_bindings, .. } = &**last {
@@ -435,7 +431,6 @@ impl Parser {
                                     name: None,
                                     bindings: return_bindings.clone(),
                                     parent: parent_env.clone(),
-                                    scope: EnvScope::LOCAL,
                                 });
                             }
                             break;
@@ -875,7 +870,7 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Integer(5))], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Integer(5))], parent: None });
     }
 
     #[test]
@@ -888,7 +883,7 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(5.0))], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Float(5.0))], parent: None });
     }
 
     #[test]
@@ -899,7 +894,7 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::String("Hello, world!".into()))], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::String("Hello, world!".into()))], parent: None });
     }
 
     #[test]
@@ -910,7 +905,7 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Identifier("x".into()))], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::Identifier("x".into()))], parent: None });
     }
 
     #[test]
@@ -932,8 +927,7 @@ mod tests {
                 value: Some(Rc::new(AstNode::Integer(5))),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
     
@@ -948,11 +942,15 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::BinaryOp {
-            left: Rc::new(AstNode::Integer(5)),
-            operator: Operators::Arithmetic(ArithmeticOperators::ADD),
-            right: Rc::new(AstNode::Integer(3))
-        })], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::BinaryOp {
+                left: Rc::new(AstNode::Integer(5)),
+                operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+                right: Rc::new(AstNode::Integer(3))
+            })],
+            parent: None
+        });
     }
 
     #[test]
@@ -966,11 +964,15 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::BinaryOp {
-            left: Rc::new(AstNode::Identifier("x".into())),
-            operator: Operators::Other(OtherOperators::ACCESSOR),
-            right: Rc::new(AstNode::Identifier("y".into())),
-        })], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::BinaryOp {
+                left: Rc::new(AstNode::Identifier("x".into())),
+                operator: Operators::Other(OtherOperators::ACCESSOR),
+                right: Rc::new(AstNode::Identifier("y".into())),
+            })],
+            parent: None
+        });
     }
 
     // Complex cases
@@ -993,8 +995,7 @@ mod tests {
                 value: Some(Rc::new(AstNode::Identifier("y".into()))),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
@@ -1010,12 +1011,10 @@ mod tests {
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
         
-        if let AstNode::Environment { bindings, scope, .. } = ast {
-            assert_eq!(scope, EnvScope::GLOBAL);
+        if let AstNode::Environment { bindings, .. } = ast {
             assert_eq!(bindings.len(), 2);
             // First binding should be a local environment containing 1
-            if let AstNode::Environment { bindings: sub_bindings, scope: sub_scope, .. } = &*bindings[0] {
-                assert_eq!(sub_scope, &EnvScope::LOCAL);
+            if let AstNode::Environment { bindings: sub_bindings, .. } = &*bindings[0] {
                 assert_eq!(sub_bindings.len(), 1);
                 assert_eq!(sub_bindings[0], Rc::new(AstNode::Integer(1)));
             }
@@ -1041,12 +1040,10 @@ mod tests {
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
         
-        if let AstNode::Environment { bindings, scope, .. } = ast {
-            assert_eq!(scope, EnvScope::GLOBAL);
+        if let AstNode::Environment { bindings, .. } = ast {
             assert_eq!(bindings.len(), 1);
             // First binding should be a local environment containing the assignment
-            if let AstNode::Environment { bindings: sub_bindings, scope: sub_scope, .. } = &*bindings[0] {
-                assert_eq!(sub_scope, &EnvScope::LOCAL);
+            if let AstNode::Environment { bindings: sub_bindings, .. } = &*bindings[0] {
                 assert_eq!(sub_bindings.len(), 1);
                 assert_eq!(sub_bindings[0], Rc::new(AstNode::Let {
                     name: "x".into(),
@@ -1071,11 +1068,14 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::BinaryOp {
-            left: Rc::new(AstNode::Integer(5)),
-            operator: Operators::Arithmetic(ArithmeticOperators::ADD),
-            right: Rc::new(AstNode::Integer(3))
-        })], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::BinaryOp {
+                left: Rc::new(AstNode::Integer(5)),
+                operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+                right: Rc::new(AstNode::Integer(3))
+            })], parent: None
+        });
     }
 
     #[test]
@@ -1091,11 +1091,14 @@ mod tests {
         ];
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment { name: None, bindings: vec![Rc::new(AstNode::BinaryOp {
-            left: Rc::new(AstNode::Integer(5)),
-            operator: Operators::Arithmetic(ArithmeticOperators::ADD),
-            right: Rc::new(AstNode::Integer(3))
-        })], parent: None, scope: EnvScope::GLOBAL });
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::BinaryOp {
+                left: Rc::new(AstNode::Integer(5)),
+                operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+                right: Rc::new(AstNode::Integer(3))
+            })], parent: None
+        });
     }
 
     #[test]
@@ -1128,8 +1131,7 @@ mod tests {
                     ])
                 })),
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
@@ -1158,8 +1160,7 @@ mod tests {
                     names: None
                 })),
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
@@ -1184,8 +1185,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment{
@@ -1197,20 +1197,17 @@ mod tests {
                     body: Rc::new(AstNode::Environment {
                         name: Some("foo".into()),
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
                         bindings: vec![Rc::new(AstNode::Integer(5))],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                 })),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
     }
 
@@ -1237,8 +1234,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment {
@@ -1250,20 +1246,17 @@ mod tests {
                     body: Rc::new(AstNode::Environment {
                         name: Some("foo".into()),
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     })
                 })),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
@@ -1292,8 +1285,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment {
@@ -1308,20 +1300,17 @@ mod tests {
                     body: Rc::new(AstNode::Environment {
                         name: Some("foo".into()),
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
                         bindings: vec![Rc::new(AstNode::Integer(5))],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     })
                 })),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
@@ -1353,8 +1342,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment {
@@ -1366,14 +1354,12 @@ mod tests {
                     body: Rc::new(AstNode::Environment {
                         name: Some("foo".into()),
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
                         bindings: vec![Rc::new(AstNode::Integer(5))],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     })
                 })),
                 inherit: Some(Rc::new(AstNode::Inherit {
@@ -1383,8 +1369,7 @@ mod tests {
                     ])
                 })),
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
@@ -1414,8 +1399,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment {
@@ -1427,22 +1411,19 @@ mod tests {
                     body: Rc::new(AstNode::Environment {
                         name: Some("foo".into()),
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
                         bindings: vec![Rc::new(AstNode::Integer(5))],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     })
                 })),
                 inherit: Some(Rc::new(AstNode::Inherit {
                     names: None
                 })),
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
@@ -1480,8 +1461,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment{
@@ -1504,8 +1484,7 @@ mod tests {
                                 inherit: None,
                             })
                         ],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
@@ -1516,14 +1495,12 @@ mod tests {
                                 right: Rc::new(AstNode::Identifier("y".into()))
                             })
                         ],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                 })),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
     }
 
@@ -1552,8 +1529,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment{
@@ -1568,8 +1544,7 @@ mod tests {
                     body: Rc::new(AstNode::Environment {
                         name: Some("foo".into()),
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
@@ -1580,14 +1555,12 @@ mod tests {
                                 right: Rc::new(AstNode::Identifier("y".into()))
                             })
                         ],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                 })),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
     }
 
@@ -1615,8 +1588,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment {
@@ -1628,20 +1600,17 @@ mod tests {
                     body: Rc::new(AstNode::Environment {
                         name: Some("foo".into()),
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
                         bindings: vec![Rc::new(AstNode::Integer(5))],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     })
                 })),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
@@ -1683,8 +1652,7 @@ mod tests {
         let global_env = Rc::new(AstNode::Environment {
             name: None,
             bindings: vec![],
-            parent: None,
-            scope: EnvScope::GLOBAL,
+            parent: None
         });
 
         assert_eq!(ast, AstNode::Environment {
@@ -1696,8 +1664,7 @@ mod tests {
                     body: Rc::new(AstNode::Environment {
                         name: Some("foo".into()),
                         bindings: vec![],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     }),
                     r#return: Rc::new(AstNode::Environment {
                         name: None,
@@ -1718,14 +1685,12 @@ mod tests {
                                 inherit: None,
                             })
                         ],
-                        parent: Some(global_env.clone()),
-                        scope: EnvScope::LOCAL,
+                        parent: Some(global_env.clone())
                     })
                 })),
                 inherit: None,
             })],
-            parent: None,
-            scope: EnvScope::GLOBAL
+            parent: None
         });
     }
 
