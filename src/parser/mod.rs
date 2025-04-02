@@ -670,19 +670,16 @@ impl Parser {
 
     /// Returns an [`AstNode::Identifier`] containing the identifier.
     /// 
-    /// This is a bottom-level submethod and does not call other submethods.
-    /// 
     /// # Arguments
     /// * `id`: A reference-counted pointer to the identifier (as `str`) to be converted.
+    /// * `context`: The context within which the identifier is parsed (as [`ParseContext`]).
     /// 
-    /// # Panics
-    /// * Failed cloning of identifier pointer.
-    /// * Failed wrapping of identifier pointer clone into `AstNode::Identifier`.
+    /// # Errors
+    /// * Any errors bubbled up from [`parse_function_call`](Parser::parse_function_call).
+    /// * [`ParserError::InvalidContextForIdentifier`]: The context given to the function does not match a valid context for identifiers.
     fn parse_identifier(&mut self, id: &Rc<str>, context: ParseContext) -> Result<AstNode, ParserError> {
         match context {
             ParseContext::FunctionCall => {
-                // Construct the identifier, make a pointer to it, and feed it into parse_function_call for
-                // construction of FunctionCall
                 return Ok(self.parse_function_call(Rc::new(AstNode::Identifier(id.clone())))?);
             },
             ParseContext::Normal => {
@@ -692,6 +689,14 @@ impl Parser {
         }
     }
 
+    /// Constructs a function call object.
+    /// 
+    /// # Arguments
+    /// * `id`: A reference-counted pointer to the identifier to which the function call is being bound (as [`AstNode::Identifier`]).
+    /// 
+    /// # Errors
+    /// * Any errors bubbled up from [`parse_function_clause`](Parser::parse_function_clause),
+    /// * [`ParserError::InvalidTokenInFnCall`]: The next token does not match the start of a function argument/parameter clause.
     fn parse_function_call(&mut self, id: Rc<AstNode>) -> Result<AstNode, ParserError> {
         let mut call_args = Rc::new(AstNode::FunctionArgs(vec![]));
         while let Some((pos, token)) = self.advance() {
