@@ -1,48 +1,75 @@
 use std::rc::Rc;
 use crate::{symbols::Operators, parser::ParserError};
 
+/// Enum variant representing the nodes of the Abstract Syntax Tree
+/// 
+/// The enum derives the traits: `Debug`, `PartialEq`, and `Clone`, and implements [`ToString`](AstNode::to_string).
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstNode {
-    // Literals
+    /// Integers are signed and system-sized
     Integer(isize),
+    /// Floats are `f64`
     Float(f64),
+    /// Booleans are `bool`s
     Boolean(bool),
+    /// String literals are reference-counted pointers to `str`
     String(Rc<str>),
+    /// Object identifiers are reference-counted pointers to `str`
     Identifier(Rc<str>),
 
-    // Environments
+    /// Environments are structs with three fields:
+    /// * `name`: Name of environment, or `None` for anonymous environments.
+    /// * `bindings`: Vector of reference-counted pointers to environment elements (as `AstNode`).
+    /// * `parent`: Reference-counted pointer to parent environment, or `None` for global environment.
     Environment {
-        name: Option<Rc<str>>, // None for anonymous
+        name: Option<Rc<str>>,
         bindings: Vec<Rc<AstNode>>,
         parent: Option<Rc<AstNode>>,
     },
 
-    // Expressions
+    /// Binary operations are structs with three fields:
+    /// * `left`: Reference-counted pointer to left-hand-side operand (as `AstNode`).
+    /// * `operator`: The operation (as [`Operators`]).
     BinaryOp {
         left: Rc<AstNode>,
         operator: Operators,
         right: Rc<AstNode>,
     },
 
-    // Bindings
+    /// Assignments are structs with three fields:
+    /// * `name`: Reference-counted pointer to assignment name (as `str`).
+    /// * `value`: Reference-counted pointer to the assignment value (as `AstNode`), or `None` if initialized but unassigned.
+    /// * `inherit`: Reference-counted pointer to the inheritance clause (as [`AstNode::Inherit`]), or `None` if no inheritance.
     Let {
         name: Rc<str>,
-        value: Option<Rc<AstNode>>,     // Holds None upon initialization
-        inherit: Option<Rc<AstNode>>,   // Capture the inherited elements as pointers, or none if none are inherited
+        value: Option<Rc<AstNode>>,
+        inherit: Option<Rc<AstNode>>,
     },
 
-    // Inheritance
+    /// Inheritance clauses are single-field structs:
+    /// * `names`: Vector of reference-counted pointers to inheritance element names (as `str`), or `None` if wildcard inheritance.
     Inherit {
-        names: Option<Vec<Rc<str>>>,    // None for wildcard inheritance, Some for specified inheritance
+        names: Option<Vec<Rc<str>>>,
     },
 
-    // Functions
-    Function {                          // Inheritance is covered in the encapsulating Let object
-        params: Rc<AstNode>,            // Will be AstNode::FunctionArgs
-        body: Rc<AstNode>,              // Will be an environment
-        r#return: Rc<AstNode>,          // Will be an environment
+    /// Functions are structs with three fields:
+    /// * `params`: Reference-counted pointer to function parameters (as [`AstNode::FunctionArgs`]).
+    /// * `body`: Reference-counted pointer to function body (as [`AstNode::Environment`]).
+    /// * `r#return`: Reference-counted pointer to function return statement (as [`AstNode::Environment`]).
+    Function {
+        params: Rc<AstNode>,
+        body: Rc<AstNode>,
+        r#return: Rc<AstNode>,
     },
-    FunctionArgs(Vec<Rc<AstNode>>),     // Vector of AstNode::Identifier's
+
+    /// Function arguments are a single-element enum variant, with a vector or reference-counted pointers to argument identifiers (as [`AstNode::Identifier`]).
+    FunctionArgs(Vec<Rc<AstNode>>),
+
+    /// Function calls are structs with two fields:
+    /// * `callee`: A smart pointer to the function caller (as `AstNode`).
+    /// * `arguments`: A vector of reference-counted pointers to calling arguments (as `AstNode`).
+    /// 
+    /// The `arguments` field will be changed in the future to hold an [`AstNode::FunctionArgs`] to standardise the API.
     FunctionCall {
         callee: Box<AstNode>,
         arguments: Vec<Rc<AstNode>>,
@@ -114,12 +141,10 @@ impl ToString for AstNode {
 }
 
 impl AstNode {
-    // Check whether the node is an environment
+    /// Checks whether the node is an environment
     pub fn is_environment(&self) -> bool { matches!(self, AstNode::Environment { .. }) }
 
-    // Check whether a contained environment has a single element
-    // Returns `true` if self is an Environment with a single element
-    // Returns `false` if self is not an Environment or if self contains multiple elements
+    /// Checks whether a contained environment has a single element
     pub fn is_single_element_env(&self) -> bool {
         if let Some(bindings) = self.get_bindings() {
             if bindings.len() == 1 {
@@ -131,7 +156,7 @@ impl AstNode {
         false
     }
 
-    // Get the bindings of an environment
+    /// Gets the bindings of an environment
     pub fn get_bindings(&self) -> Option<Vec<Rc<AstNode>>> {
         match self {
             AstNode::Environment { bindings, .. } => Some(bindings.to_vec()),
@@ -139,7 +164,7 @@ impl AstNode {
         }
     }
 
-    // Get the name of an environment
+    /// Gets the name of an environment
     pub fn get_name(&self) -> Option<Rc<str>> {
         match self {
             AstNode::Environment { name, .. } => name.clone(),
@@ -147,7 +172,7 @@ impl AstNode {
         }
     }
 
-    // Get the parent of an environment
+    /// Gets the parent of an environment
     pub fn get_parent(&self) -> Option<Rc<AstNode>> {
         match self {
             AstNode::Environment { parent, .. } => parent.clone(),
@@ -155,7 +180,7 @@ impl AstNode {
         }
     }
 
-    // Get function argument parameters
+    /// Gets the names of function arguments/parameters
     pub fn get_params(&self) -> Option<Vec<Rc<AstNode>>> {
         match self {
             AstNode::FunctionArgs(names) => {
@@ -167,7 +192,7 @@ impl AstNode {
         }
     }
 
-    // Get inherited names
+    /// Gets names of inherited objects
     pub fn get_inherited_names(&self) -> Option<Vec<Rc<str>>> {
         match self {
             AstNode::Inherit { names } => {
@@ -181,7 +206,7 @@ impl AstNode {
         }
     }
 
-    // Add inherited element to inheritance clause
+    /// Adds an element to an inheritance clause
     pub fn push_inherited_name(&mut self, node: Rc<str>) -> Result<(), ParserError> {
         match self{
             AstNode::Inherit { ref mut names } => {
@@ -196,8 +221,9 @@ impl AstNode {
         }
     }
 
-    // Generic field setting for Let statements
-    // This should be extendable to other struct variants (e.g., Function or FunctionCall) as needed
+    /// Sets an enum variant field based on a given closure
+    /// 
+    /// This generic method may be expanded in the future to cover further `AstNode` variants.
     pub fn set_field<T>(&mut self, field_setter: impl FnOnce(&mut AstNode) -> Result<(), ParserError>) -> Result<(), ParserError> {
         match self {
             AstNode::Let { .. } | AstNode::FunctionArgs(_) => {
@@ -207,8 +233,4 @@ impl AstNode {
             _ => Err(ParserError::ParserLogicError(0, 0)), // TODO: Make error more informative
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
 }
