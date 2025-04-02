@@ -8,6 +8,22 @@ This version entails a complete rewrite of reading in `.envl` files with the CLI
 
 Each step in the rewrite is done in a new `patch` version to ensure clarity of changes.
 
+### Version 0.5.10
+
+#### Major changes
+
+- The `AstNode::FunctionCall` variant has been rewritten to house reasonable information about function calls, as well as to standardize the API of Envlang.
+- The parser now parses function calls in the form `let x = foo[a, b];`.
+- The new method `Parser::parse_function_call` is used to handle function call node construction.
+- Added skips for the function call node variant when matching on line terminators and EOF tokens in an environment.
+- `Parser::parse_identifier` now takes a `ParseContext` to help it parse function calls. Previous behaviour is enabled with `ParseContext::Normal`.
+
+#### Minor changes
+
+- `ParseContext` now implements `ToString`.
+- Added new error variants to `ParserError` related to function call parsing.
+- Added unit test for function calls.
+
 ### Version 0.5.9
 
 #### Major changes

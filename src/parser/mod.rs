@@ -37,6 +37,19 @@ enum ParseContext {
     Operation,
     Function,
     FunctionReturn,
+    FunctionCall,
+}
+
+impl ToString for ParseContext {
+    fn to_string(&self) -> String {
+        match self {
+            ParseContext::Normal => "ParseContext::Normal".to_string(),
+            ParseContext::Operation => "ParseContext::Operation".to_string(),
+            ParseContext::Function => "ParseContext::Function".to_string(),
+            ParseContext::FunctionReturn => "ParseContext::FunctionReturn".to_string(),
+            ParseContext::FunctionCall => "ParseContext::FunctionCall".to_string(),
+        }
+    }
 }
 
 /// The `Parser` struct holds the [`Token`] vector from the lexer, as well as the index of the currently lexed token and the line number.
@@ -174,7 +187,15 @@ impl Parser {
                     continue;
                 },
                 Token::Identifier(id) => {
-                    let node: AstNode = self.parse_identifier(&id)?;
+                    let mut inner_context = ParseContext::Normal;
+                    if let Some(token) = self.peek() {
+                        match token {
+                            Token::LeftBracket(_) => inner_context = ParseContext::FunctionCall,
+                            _ => (),
+                        }
+                    }
+                    
+                    let node: AstNode = self.parse_identifier(&id, inner_context)?;
                     if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.push(Rc::new(node));
                     }
@@ -274,7 +295,7 @@ impl Parser {
                                 return Ok(current_env.clone());
                             }
                         },
-                        ParseContext::Function => {
+                        ParseContext::Function | ParseContext::FunctionCall => {
                             continue;
                         },
                         ParseContext::FunctionReturn => {
@@ -292,18 +313,16 @@ impl Parser {
                             // Global env can finish on EOF
                             return Ok(current_env);
                         },
-                        ParseContext::Normal => {
-                            // Non-global env cannot finish on EOF
-                            return Err(ParserError::UnexpectedEOF(pos, self.line));
-                        },
                         ParseContext::Function => {
                             // Functions cannot finish without return statements
                             return Err(ParserError::MissingReturnStatement(pos, self.line, "".into()))
                         },
-                        ParseContext::Operation => {
-                            // Operations cannot finish on EOF
+                        ParseContext::Normal
+                        | ParseContext::FunctionCall
+                        | ParseContext::Operation => {
+                            // Non-global env cannot finish on EOF
                             return Err(ParserError::UnexpectedEOF(pos, self.line));
-                        }
+                        },
                     }
                 },
             }
@@ -495,7 +514,7 @@ impl Parser {
                         let AstNode::FunctionArgs(args) = v else {
                             unreachable!("Safety: Will always be AstNode::FunctionArgs");
                         };
-                        let node = self.parse_identifier(&id)?;
+                        let node = self.parse_identifier(&id, ParseContext::Normal)?;
                         args.push(Rc::new(node));
                         Ok(())
                     })?;
@@ -659,7 +678,39 @@ impl Parser {
     /// # Panics
     /// * Failed cloning of identifier pointer.
     /// * Failed wrapping of identifier pointer clone into `AstNode::Identifier`.
-    fn parse_identifier(&mut self, id: &Rc<str>) -> Result<AstNode, ParserError> { Ok(AstNode::Identifier(id.clone())) }
+    fn parse_identifier(&mut self, id: &Rc<str>, context: ParseContext) -> Result<AstNode, ParserError> {
+        match context {
+            ParseContext::FunctionCall => {
+                // Construct the identifier, make a pointer to it, and feed it into parse_function_call for
+                // construction of FunctionCall
+                return Ok(self.parse_function_call(Rc::new(AstNode::Identifier(id.clone())))?);
+            },
+            ParseContext::Normal => {
+                return Ok(AstNode::Identifier(id.clone()));
+            },
+            _ => return Err(ParserError::InvalidContextForIdentifier(self.line, context.to_string())),
+        }
+    }
+
+    fn parse_function_call(&mut self, id: Rc<AstNode>) -> Result<AstNode, ParserError> {
+        let mut call_args = Rc::new(AstNode::FunctionArgs(vec![]));
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::LeftBracket(_) => {
+                    call_args = Rc::new(self.parse_function_clause()?);
+                    break;
+                },
+                _ => {
+                    return Err(ParserError::InvalidTokenInFnCall(pos, self.line, token.to_string()))
+                },
+            }
+        }
+
+        return Ok(AstNode::FunctionCall {
+            id,
+            args: call_args,
+        });
+    }
 
     /// Increments the line counter if the whitespace is a new-line character.
     /// 
@@ -1691,6 +1742,39 @@ mod tests {
                 inherit: None,
             })],
             parent: None
+        });
+    }
+
+    // Function calls
+    #[test]
+    fn minimal_function_call() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Identifier("foo".into()),
+            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![
+                Rc::new(AstNode::Let {
+                    name: "x".into(),
+                    value: Some(Rc::new(AstNode::FunctionCall {
+                        id: Rc::new(AstNode::Identifier("foo".into())),
+                        args: Rc::new(AstNode::FunctionArgs(
+                            vec![]
+                        ))
+                    })),
+                    inherit: None,
+                })
+            ],
+            parent: None,
         });
     }
 

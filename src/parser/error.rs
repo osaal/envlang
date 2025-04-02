@@ -47,6 +47,8 @@ pub enum ParserError {
     MissingReturnStatement(usize, usize, String),   // (pos, line, value)
     InvalidTokenInFnSignature(usize, usize, String),// (pos, line, value)
     UnexpectedReturn(usize, usize),             // (pos, line)
+    InvalidContextForIdentifier(usize, String), // (line, value)
+    InvalidTokenInFnCall(usize, usize, String), // (pos, line, value)
 }
 
 impl Error for ParserError {}
@@ -116,7 +118,11 @@ impl fmt::Display for ParserError {
             ParserError::InvalidTokenInFnSignature(pos, line, valuestr) =>
                 write!(f, "Parser error at source line {}, token position {}: Expected inheritance clause or assignment operator instead of: '{}'", line, pos, valuestr),
             ParserError::UnexpectedReturn(pos, line) =>
-                write!(f, "Parser error at source line {}, token position {}: The `return` keyword is not valid in this context", line, pos)
+                write!(f, "Parser error at source line {}, token position {}: The `return` keyword is not valid in this context", line, pos),
+            ParserError::InvalidContextForIdentifier(line, valuestr) =>
+                write!(f, "Parser error at source line {}: Expected ParseContext::FunctionCall or ParseContext::Normal, got {}", line, valuestr),
+            ParserError::InvalidTokenInFnCall(pos, line, valuestr) =>
+                write!(f, "Parser error at source line {}, token position {}: Expected identifier or opening function argument bracket, instead of: '{}'", line, pos, valuestr),
         }
     }
 }

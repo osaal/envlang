@@ -66,13 +66,11 @@ pub enum AstNode {
     FunctionArgs(Vec<Rc<AstNode>>),
 
     /// Function calls are structs with two fields:
-    /// * `callee`: A smart pointer to the function caller (as `AstNode`).
-    /// * `arguments`: A vector of reference-counted pointers to calling arguments (as `AstNode`).
-    /// 
-    /// The `arguments` field will be changed in the future to hold an [`AstNode::FunctionArgs`] to standardise the API.
+    /// * `id`: Reference-counted pointer to the function being called (as [`AstNode::Identifier`])
+    /// * `args`: Reference-counter pointer to the function arguments (as [`AstNode::FunctionArgs`])
     FunctionCall {
-        callee: Box<AstNode>,
-        arguments: Vec<Rc<AstNode>>,
+        id: Rc<AstNode>,
+        args: Rc<AstNode>,
     },
 }
 
@@ -131,10 +129,10 @@ impl ToString for AstNode {
                 => format!("[{}]",
                     params.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(", ")
                 ),
-            AstNode::FunctionCall { callee, arguments }
-                => format!("Function call by {} with arguments [{}]",
-                    callee.to_string(),
-                    arguments.iter().map(|arg| arg.to_string()).collect::<Vec<String>>().join(", ")
+            AstNode::FunctionCall { id, args }
+                => format!("Function call to {} with arguments {}",
+                    id.to_string(),
+                    args.to_string()
                 ),
         }
     }
