@@ -22,7 +22,6 @@ pub fn read_file(path: &str) -> Result<String, std::io::Error> {
     return Ok(read_to_string(path)?);
 }
 
-// Unit tests for io.rs
 #[cfg(test)]
 mod tests {
     use super::*;

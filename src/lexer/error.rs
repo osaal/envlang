@@ -3,15 +3,15 @@ use std::fmt;
 
 /// Error type for Envlang lexer
 /// 
-/// The error types match various failure states during lexical analysis
+/// The error types match various failure states during lexical analysis.
 /// 
 /// Errors always contain at least:
-/// - The current lexer position
-/// - The input length (if relevant)
+/// - The current lexer position.
+/// - The input length (if relevant).
 /// 
 /// Errors may optionally include information about:
-/// - Expected and actual values
-/// - Attempted operation parameters
+/// - Expected and actual values.
+/// - Attempted operation parameters.
 #[derive(Debug)]
 pub enum LexerError {
     InvalidToken(usize, String),            // (pos, token)

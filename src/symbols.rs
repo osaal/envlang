@@ -2,14 +2,11 @@
 //! 
 //! All symbols and keywords used and/or recognised in Envlang are enumerated in this module's enums.
 //! 
-//! This list will grow significantly until the release of version 1.0.x.
+//! This list will grow significantly until the release of version 1.0.0.
 
 /// Types of operators
 /// 
-/// - `Arithmetic`: Arithmetic operators
-/// - `Other`: Other operators
-/// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements [`ToString`](Operators::to_string).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operators {
     Arithmetic(ArithmeticOperators),
@@ -27,26 +24,21 @@ impl ToString for Operators {
 
 /// Types of arithmetic operators
 /// 
-/// These operators are overloaded according to the [data types] being operated on.
-/// 
-/// -  `ADD`: Addition operator `+`
-/// -  `SUBTRACT`: Subtraction operator `-`
-/// -  `DIVIDE`: Division operator `/`
-/// -  `MULTIPLY`: Multiplication operator `*`
-/// -  `MODULUS`: Remainder operator `%`
-/// -  `EXPONENTIATION`: Exponentiation operator `^`
-/// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
-/// 
-/// [data types]: ../environment/enum.EnvValue.html
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements [`ToString`](ArithmeticOperators::to_string).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArithmeticOperators {
-    ADD,            // +
-    SUBTRACT,       // -
-    DIVIDE,         // /
-    MULTIPLY,       // *
-    MODULUS,        // %
-    EXPONENTIATION, // ^
+    /// The `+` operator (U+002B)
+    ADD,
+    /// The `-` operator (U+002D)
+    SUBTRACT,
+    /// The `/` operator (U+002F)
+    DIVIDE,
+    /// The `*` operator (U+002A)
+    MULTIPLY,
+    /// The `%` operator (U+0025)
+    MODULUS,
+    /// The `^` operator (U+005E)
+    EXPONENTIATION,
 }
 
 impl ToString for ArithmeticOperators {
@@ -64,16 +56,13 @@ impl ToString for ArithmeticOperators {
 
 /// Types of other operators
 /// 
-/// The accessor operator is overloaded as the decimal point in number-like types (integer, float).
-/// 
-/// - `ACCESSOR`: Environment accessor symbol `.`
-/// - `ASSIGNMENT`: Environment assignment symbol `=`
-/// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements [`ToString`](OtherOperators::to_string).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OtherOperators {
-    ACCESSOR,       // .
-    ASSIGNMENT,     // =
+    /// The `.` operator (U+002E)
+    ACCESSOR,
+    /// The `=` operator (U+003D)
+    ASSIGNMENT,
 }
 
 impl ToString for OtherOperators {
@@ -87,38 +76,34 @@ impl ToString for OtherOperators {
 
 /// Types of generic symbols
 /// 
-/// These symbols are not used by Envlang per se, but are recognised for purposes of string parsing.
-/// 
-/// -  `DASH`: The dash symbol `-`
-/// -  `UNDERSCORE`: The underscore symbol `_`
-/// 
 /// The enum derives the traits `Debug`, and `Clone`.
 #[derive(Debug, Clone)]
 pub enum GenericSymbols {
-    DASH,           // -
-    UNDERSCORE,     // _
+    /// The `-` symbol (U+002D)
+    DASH,
+    /// The `_` symbol (U+005F)
+    UNDERSCORE,
 }
 
 /// Types of reserved symbols
 /// 
-/// - `TERMINATOR`: Line (implicit environment) terminator symbol `;`
-/// - `ENVOPEN`: Start of explicit environment declaration symbol `{`
-/// - `ENVCLOSE`: End of explicit environment declaration symbol `}`
-/// - `INHERITOPEN`: Start of inheritance declaration symbol `(`
-/// - `INHERITCLOSE`: End of inheritance declaration symbol `)`
-/// - `FUNARGOPEN`: Start of function argument declaration symbol `[`
-/// - `FUNARGCLOSE`: End of function argument declaration symbol `]`
-/// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq` and `Eq`, and implements `ToString`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq` and `Eq`, and implements [`ToString`](ReservedSymbols::to_string).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReservedSymbols {
-    TERMINATOR,     // ;
-    ENVOPEN,        // {
-    ENVCLOSE,       // }
-    INHERITOPEN,    // (
-    INHERITCLOSE,   // )
-    FUNARGOPEN,     // [
-    FUNARGCLOSE,    // ]
+    /// The `;` symbol (U+003B)
+    TERMINATOR,
+    /// The `{` symbol (U+007B)
+    ENVOPEN,
+    /// The `}` symbol (U+007D)
+    ENVCLOSE,
+    /// The `(` symbol (U+0028)
+    INHERITOPEN,
+    /// The `)` symbol (U+0029)
+    INHERITCLOSE,
+    /// The `[` symbol (U+005B)
+    FUNARGOPEN,
+    /// The `]` symbol (U+005D)
+    FUNARGCLOSE,
 }
 
 impl ToString for ReservedSymbols {
@@ -137,33 +122,30 @@ impl ToString for ReservedSymbols {
 
 /// Types of string-related symbols
 /// 
-/// -  `DOUBLEQUOTE`: Double quote symbol `"`
-/// -  `SINGLEQUOTE`: Single quote symbol a.k.a. apostrophe `'`
-/// -  `ESCAPE`: Escape character `\`
-/// 
 /// The enum derives the traits `Debug`, and `Clone`.
 #[derive(Debug, Clone)]
 pub enum StringSymbols {
-    DOUBLEQUOTE,    // "
-    SINGLEQUOTE,    // '
-    ESCAPE,         // \
+    /// The `"` symbol (U+0022)
+    DOUBLEQUOTE,
+    /// The `'` symbol (U+0027)
+    SINGLEQUOTE,
+    /// The `\\` symbol (U+005C)
+    ESCAPE,
 }
 
 /// Reserved keywords
 /// 
-/// The reserved keywords may not be used as environment identifiers.
-/// 
-/// -  `LET`: Assignment keyword `let`
-/// -  `INHERIT`: Inheritance keyword `inherit`
-/// -  `FUN`: Function assignment keyword `fun`
-/// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements [`ToString`](Keywords::to_string).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Keywords {
-    LET,            // let
-    INHERIT,        // inherit
-    FUN,            // fun
-    RETURN,         // return
+    /// The "let" keyword
+    LET,
+    /// The "inherit" keyword
+    INHERIT,
+    /// The "fun" keyword
+    FUN,
+    /// The "return" keyword
+    RETURN,
 }
 
 impl ToString for Keywords {
@@ -179,16 +161,13 @@ impl ToString for Keywords {
 
 /// Booleans
 /// 
-/// The booleans may not be used as identifiers.
-/// 
-/// -  `TRUE`: Boolean value `true`
-/// -  `FALSE`: Boolean value `false`
-/// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements `ToString`.
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements [`ToString`](Booleans::to_string).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Booleans {
-    TRUE,           // true
-    FALSE,          // false
+    /// The boolean value `true`
+    TRUE,
+    /// The boolean value `false`
+    FALSE,
 }
 
 impl ToString for Booleans {

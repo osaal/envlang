@@ -3,16 +3,18 @@ use std::fmt;
 
 /// Error type for Envlang parser
 /// 
-/// The error types match various failure states during semantic analysis
+/// The error types match various failure states during semantic analysis.
 /// 
 /// Errors always contain at least:
-/// - The current parser position
-/// - The current line number (calculated by the parser)
-/// - The value that caused the error
+/// - The current parser position.
+/// - The current line number (calculated by the parser).
+/// - The value that caused the error.
 /// 
 /// Errors may optionally include information about:
-/// - Expected and actual values
-/// - Attempted operation parameters
+/// - Expected and actual values.
+/// - Attempted operation parameters.
+/// 
+/// Usage of the error types is documented in the [`Parser`](super::Parser).
 #[derive(Debug, PartialEq)]
 pub enum ParserError {
     NotANumber(usize, usize, String),           // (pos, line, value)

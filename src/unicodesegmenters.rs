@@ -2,7 +2,7 @@
 //! 
 //! This module contains functions for converting `String` data into Unicode-segmented `String` vectors.
 //! 
-//! It uses the external crate [`unicode_segmentation`] heavily.
+//! It uses the external crate [`unicode_segmentation`].
 //! 
 //! [`unicode_segmentation`]: https://crates.io/crates/unicode-segmentation
 
@@ -10,13 +10,6 @@ use unicode_segmentation::UnicodeSegmentation;
 
 /// Segment a string slice into Unicode graphemes
 /// 
-/// # Arguments
-/// * `input` - The string slice to segment
-/// 
-/// # Returns
-/// A vector of strings representing single extended grapheme clusters
-/// 
-/// # Performance
 /// The vector allocates new strings for each grapheme cluster.
 /// 
 /// # Examples
@@ -33,7 +26,6 @@ pub fn segment_graphemes(input: &str) -> Vec<String> {
         .collect()
 }
 
-// Unit tests for unicodesegmenters.rs
 #[cfg(test)]
 mod tests {
     use super::*;

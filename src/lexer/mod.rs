@@ -7,11 +7,11 @@
 //! # Error handling
 //! 
 //! The lexer provides [comprehensive error handling] for:
-//! - Invalid tokens
-//! - Unterminated strings
-//! - Empty identifiers
-//! - Unrecognized input
-//! - Invalid lexer states
+//! * Invalid tokens
+//! * Unterminated strings
+//! * Empty identifiers
+//! * Unrecognized input
+//! * Invalid lexer states
 //! 
 //! All errors include position information for reporting.
 //! 
@@ -34,7 +34,7 @@ use std::borrow::Borrow;
 /// 
 /// The `Lexer` struct holds the Unicode-segmented `String` vector from [`segment_graphemes()`].
 /// 
-/// Note, that the Lexer does not actually check whether the `String`s have been properly segmented!
+/// Note, that the Lexer does not actually check whether the `String`s have been properly segmented.
 /// 
 /// # Panics
 /// 
@@ -42,9 +42,9 @@ use std::borrow::Borrow;
 /// 
 /// # Errors
 /// All lexer methods return `Result` types with detailed error information including:
-/// - Position of the error in the input vector
-/// - Type of error
-/// - Relevant context (e.g., partial string content for unterminated strings)
+/// * Position of the error in the input vector
+/// * Type of error
+/// * Relevant context (e.g., partial string content for unterminated strings)
 /// 
 /// [`segment_graphemes()`]: ../unicodesegmenters/fn.segment_graphemes.html
 pub struct Lexer {
@@ -53,18 +53,10 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    /// Lexer initialization
-    /// 
     /// Initializes a new Lexer with a given input vector
     /// 
-    /// # Arguments
-    /// * `input` - A vector of Strings to be conformed to `Rc<str>`s and lexed
-    /// 
-    /// # Returns
-    /// A `Lexer` ready for lexing iteration
-    /// 
     /// # Undefined Behaviour
-    /// The Lexer will still work with a non-segmented input, but the results will not be accurate for many Unicode characters
+    /// The Lexer will still work with a non-segmented input, but the results will not be accurate for many Unicode characters.
     pub fn new(input: Vec<String>) -> Self {
         Self {
             input: input.into_iter().map(|s| Rc::from(s.as_str())).collect(),
@@ -72,14 +64,7 @@ impl Lexer {
         }
     }
 
-    /// Iterate over the input
-    /// 
-    /// Returns both the position and content of the current token in the input vector.
-    /// 
-    /// # Returns
-    /// A tuple of (position, content), where:
-    /// - position: index of the current token
-    /// - content: the token's content as an `Rc<str>`
+    /// Iterates over the input
     fn iterate(&mut self) -> Option<(usize, Rc<str>)> {
         if self.current < self.input.len() {
             let pos = self.current;
@@ -91,19 +76,13 @@ impl Lexer {
         }
     }
 
-    /// Peek at the Nth input
+    /// Peeks at the Nth input
     /// 
-    /// Used as an immutable and flexible alternative to `iterate`
-    /// 
-    /// # Arguments
-    /// * `n` - the n-th input to retrieve
-    /// 
-    /// # Returns
-    /// A Result containing a successfully retrieved element from the input vector
+    /// Used as an immutable and flexible alternative to [`iterate`](Lexer::iterate).
     /// 
     /// # Errors
-    /// - `LexerError::BrokenLexer` if the currently-held position is beyond input length
-    /// - `LexerError::IndexOutOfBounds` if the index of the requested element is beyond input length
+    /// * [`LexerError::BrokenLexer`]: The currently-held position is beyond input length.
+    /// * [`LexerError::IndexOutOfBounds`]: The index of the requested element is beyond input length.
     fn peek_n(&self, n: usize) -> Result<Rc<str>, LexerError> {
         let length: usize = self.input.len();
         if self.current > length {
@@ -115,20 +94,11 @@ impl Lexer {
         }
     }
 
-    /// Tokenize the input
-    /// 
-    /// Walks over the `input` vector and tokenizes it according to the syntax of Envlang.
-    /// 
-    /// The function relies on a number of `tokenize_` methods to accurately classify the input.
-    /// These methods all return Result<Token, LexerError>, where the errors are curried to the return of this method.
-    /// See the documentation of each `tokenize_` method for their potential error values.
-    /// 
-    /// # Returns
-    /// A Result containing a vector of appropriately matched Tokens
+    /// Tokenizes the input
     /// 
     /// # Errors
-    /// - `LexerError::UnrecognizedInput` if a given input string does not match the syntax of Envlang
-    /// - Errors curried from the `tokenize_` methods
+    /// * Any errors bubbled up from [`tokenize_string`](Lexer::tokenize_string), [`tokenize_operator`](Lexer::tokenize_operator), [`tokenize_number`](Lexer::tokenize_number), or [`tokenize_alphabetics`](Lexer::tokenize_number).
+    /// * [`LexerError::UnrecognizedInput`]: The input string does not match the syntax of Envlang.
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
         while let Some((pos, unicode_string)) = self.iterate() {
@@ -170,70 +140,52 @@ impl Lexer {
         return Ok(tokens);
     }
 
-    /// Tokenize a sequence of numbers
-    /// 
-    /// Matches one or more characters that conform to `char.is_ascii_digit()`
-    /// 
-    /// # Arguments
-    /// * `unicode_string` - The `str` to tokenize
-    /// 
-    /// # Returns
-    /// A Result containing a successfully parsed `Token::Number`
+    /// Matches one or more characters that conform to [`char::is_ascii_digit`]
     /// 
     /// # Errors
-    /// - `LexerError::InvalidToken` if the given `unicode_string` is not an ASCII digit
-    /// 
-    /// The function is guaranteed to gracefully and silently handle other potential scenarios, so no further error conditions are necessary
+    /// * [`LexerError::InvalidToken`]: `unicode_string` is not an ASCII digit.
     fn tokenize_number(&mut self, unicode_string: &str, pos: usize) -> Result<Token, LexerError> {
-        // Exit early on empty string
-        if unicode_string.is_empty() { return Err(LexerError::InvalidToken(pos, String::new())); }
+        if unicode_string.is_empty() {
+            return Err(LexerError::InvalidToken(pos, String::new()));
+        }
 
         // Validate first character to exit early in case of inappropriate input
         // TODO: Write test to check this error's pos value, in case we are off-by-one
-        if !unicode_string.chars().all(|c| c.is_ascii_digit()) { return Err(LexerError::InvalidToken(pos, unicode_string.to_string())); }
+        if !unicode_string.chars().all(|c| c.is_ascii_digit()) {
+            return Err(LexerError::InvalidToken(pos, unicode_string.to_string()));
+        }
 
         let mut number = unicode_string.to_string();
 
-        // We exit out in three conditions:
-        // 1. Hitting a non-digit character (valid termination, no error)
-        // 2. Reaching end of input (valid termination, no error)
-        // 3. Invalid lexer state (caught by the while-let loop, no error)
         while let Ok(next_unicode_string) = self.peek_n(self.current) {
             if !next_unicode_string.chars().all(|c| c.is_ascii_digit()) {
+                // Valid termination state, exit out.
                 break;
             }
+
             let (_, digit) = self.iterate().unwrap();
             number.push_str(&digit);
         }
+
         return Ok(Token::Number(Rc::from(number)));
     }
 
-    /// Tokenize a sequence of alphanumeric characters
+    /// Matches potential non-string-delimited character sequences
     /// 
-    /// Matches potential non-string-delimited character sequences:
-    /// 1. Boolean values (true, false)
-    /// 2. Reserved keywords (see symbols::Keywords)
-    /// 3. Identifiers (a sequence of alphanumeric characters, may contain symbols::GenericSymbol)
-    /// 
-    /// # Arguments
-    /// * `unicode_string` - The `str` to tokenize
-    /// 
-    /// # Returns
-    /// A Result containing a successfully parsed Token of types:
-    /// - `Token::Keyword` if a keyword was recognised
-    /// - `Token::Boolean` if a boolean value was recognised
-    /// - `Token::Identifier` in other cases (if no errors were caused)
+    /// Matches can be boolean values, reserved [keywords](crate::symbols::Keywords), or identifiers.
     /// 
     /// # Errors
-    /// - `LexerError::InvalidToken` if the input stream did not start with an alphabetic character
-    /// - `LexerError::EmptyIdentifier` if the input stream is empty
+    /// * [`LexerError::InvalidToken`]: The input stream did not start with an alphabetic character.
+    /// * [`LexerError::EmptyIdentifier`]: The input stream is empty.
     fn tokenize_alphabetics(&mut self, unicode_string: &str, pos: usize) -> Result<Token, LexerError> {
-        if unicode_string == "" { return Err(LexerError::EmptyIdentifier(pos)); }
+        if unicode_string == "" {
+            return Err(LexerError::EmptyIdentifier(pos));
+        }
 
-        // Doesn't start with an alphabetic character == invalid identifier/boolean/keyword
-        if !unicode_string.chars().all(|c| c.is_alphabetic()) { return Err(LexerError::InvalidToken(pos, unicode_string.to_string())); }
+        if !unicode_string.chars().all(|c| c.is_alphabetic()) {
+            return Err(LexerError::InvalidToken(pos, unicode_string.to_string()));
+        }
         
-        // The set of valid symbols is that of an identifier, with booleans and keywords having subsets of identifiers
         let mut temp = unicode_string.to_string();
         while let Ok(following_unicode_string) = self.peek_n(self.current) {
             match following_unicode_string.as_ref() {
@@ -242,6 +194,7 @@ impl Lexer {
                     s == "-" ||
                     s == "_" =>
                     {
+                        // TODO: Convert to if-let-some to handle error state more gracefully.
                         let (_, ch) = self.iterate().unwrap();
                         temp.push_str(&ch);
                     },
@@ -262,22 +215,20 @@ impl Lexer {
     
     /// Tokenize a string
     /// 
-    /// Matches one or more characters in-between opening and closing string literal delimiters.
-    /// 
-    /// Note, that the function actually never specifies which delimiter to use! It is up to the calling context to supply an appropriate delimiter.
+    /// # Safety
+    /// The calling context must supply an appropriate string delimiter.
     /// 
     /// # Arguments
     /// * `matched` - The delimiter used.
     /// 
-    /// # Returns
-    /// A Result containing a successfully parsed `Token::StringLiteral`
-    /// 
     /// # Errors
-    /// - `LexerError::UnterminatedString` if the input ends before a closing delimiter is found, or if the lexer is broken
-    /// - Other errors curried from `peek_n()`
+    /// * Any errors bubbled up from [`peek_n`](Lexer::peek_n).
+    /// * [`LexerError::UnterminatedString`]: Input ends before a closing delimiter is found, or the lexer is broken.
     fn tokenize_string(&mut self, matched: &str, start_pos: usize) -> Result<Token, LexerError> {
         let mut value: String = String::new();
         loop {
+            // TODO: Consider switching away from a generic loop.
+            // TODO: Split up errors.
             match self.peek_n(self.current) {
                 Ok(ch) => {
                     if ch.as_ref() != matched {
@@ -296,6 +247,10 @@ impl Lexer {
         Ok(Token::StringLiteral(Rc::from(value)))
     }
 
+    /// Tokenize an operator
+    /// 
+    /// # Errors
+    /// * [`LexerError::UnrecognizedInput`]: The text did not match the set of valid operators.
     fn tokenize_operator(&mut self, unicode_string: &str, pos: usize) -> Result<Token, LexerError> {
         let operator = match unicode_string {
             "+" => Ok(Operators::Arithmetic(ArithmeticOperators::ADD)),
@@ -305,13 +260,12 @@ impl Lexer {
             "%" => Ok(Operators::Arithmetic(ArithmeticOperators::MODULUS)),
             "^" => Ok(Operators::Arithmetic(ArithmeticOperators::EXPONENTIATION)),
             "=" => Ok(Operators::Other(OtherOperators::ASSIGNMENT)),
-            _ => Err(LexerError::UnrecognizedInput(pos, unicode_string.to_string()))?,
+            _ => Err(LexerError::UnrecognizedInput(pos, unicode_string.to_string())),
         };
         return Ok(Token::Operator(operator?));
     }
 }
 
-// Unit tests for lexer.rs
 #[cfg(test)]
 mod tests {
     use crate::symbols::ArithmeticOperators;
