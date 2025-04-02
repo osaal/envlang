@@ -97,7 +97,7 @@ impl Lexer {
     /// Tokenizes the input
     /// 
     /// # Errors
-    /// * Any errors bubbled up from [`tokenize_string`](Lexer::tokenize_string), [`tokenize_operator`](Lexer::tokenize_operator), [`tokenize_number`](Lexer::tokenize_number), or [`tokenize_alphabetics`](Lexer::tokenize_number).
+    /// * Any errors bubbled up from [`tokenize_string`](Lexer::tokenize_string), [`tokenize_operator`](Lexer::tokenize_operator), [`tokenize_number`](Lexer::tokenize_number), or [`tokenize_alphabetics`](Lexer::tokenize_alphabetics).
     /// * [`LexerError::UnrecognizedInput`]: The input string does not match the syntax of Envlang.
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
