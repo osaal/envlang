@@ -1,21 +1,20 @@
 # Envlang: An interpreted language based on environments
 
-Envlang is an interpreted language written in Rust, whose main feature is treating all input as environments.
+Envlang is an interpreted language written in Rust, whose main feature is treating all input as environments. It draws heavy inspiration from `R`, especially from its functional side.
 
-Environments are a special data type in Envlang, who can function as expressions, data values, data containers, and even functions.
+Environments are a special data type that can function as expressions, data values, data containers, and even functions.
 
-Envlang is:
-
--  Statically typed (NYI) with constant assignments
--  Functionally pure -- all declared functions take an input and return an output, with no side-effects allowed
+Envlang is dynamically typed, constantly assigned, and functionally pure.
 
 ## Current development status
 
 Envlang is under alpha development. The language is not fully functional currently, but can be installed for testing purposes.
 
+Currently, the lexing and parsing stages are fully functional. There are several missing language features, such as control flow and basic I/O.
+
 The release will be bumped to 1.x.x for the stable release version.
 
-## Installation and Usage
+## Installation
 
 Install Envlang with `cargo`:
 
@@ -24,6 +23,8 @@ git clone https://github.com/osaal/envlang
 cd envlang
 cargo build
 ```
+
+## Usage
 
 Envlang can be used as a binary CLI tool, taking a `.envl` file as its input, or through `cargo`:
 
@@ -36,9 +37,23 @@ cargo build
 cargo run -- filename.envl
 ```
 
-## Syntax
+## Documentation
 
-The syntax is documented and updated in the [Basics Markdown file](docs/Basics.md) of this repository. Future versions may move to a dedicated page.
+I aim to document the entire codebase (bar test suites), including private objects and methods. Docs can be rendered locally with `cargo`:
+
+```
+cargo doc --document-private-items
+```
+
+If you are interested in contributing to Envlang, please make sure to thoroughly document your code using docstrings.
+
+## Syntax and Other Docs
+
+The syntax is documented in the [Basics Markdown file](docs/Basics.md) of this repository.
+
+The [docs](docs/) directory contains other general documentation, such as the changelog, and the structure of the Envlang interpreter. Please note, that any documentation files residing in `/docs` may currently be out-of-date.
+
+Future versions may move these docs to a dedicated page.
 
 ## Issues
 

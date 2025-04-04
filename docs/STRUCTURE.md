@@ -4,7 +4,7 @@ This file documents how Envlang reads in input files, lexes and parses meaningfu
 
 **While Envlang is in alpha development, this file can be used to track progress on the interpreter.**
 
-**Update 2 March 2025**: The internal structure of Envlang will be rewritten to accommodate better separation of concerns. This document is outdated for the time being.
+**Update 2 April 2025**: The documentation is up-to-date with the rewrite of the lexer and parser.
 
 ## CLI operation and reading in an Envlang script
 
@@ -41,21 +41,15 @@ The successful results from `crate::unicodesegmenters::segment_graphemes()` shou
 
 Returns a `Vec<Token>`, where each `Token` is a lexed token.
 
-Errors if:
-- No errors at the moment; inappropriate Tokens are simply skipped
+All errors are wrapped in the custom `LexerError` type, which implements descriptive error messages including error contexts.
 
-## Parse Tokens into ParsedInputTypes
+## Parse Tokens into ASTNodes
 
-- Status: IN PROGRESS 🚧
+- Status: COMPLETE ✅
 
-The successful results from `crate::lexer::Lexer.tokenize()` should be passed to `crate::parser::parse_tokens()`.
+The successful results from `crate::lexer::Lexer.tokenize()` should be passed to `crate::parser::Parser.parse()`.
 
-Returns an `Rc<Environment>`, where the environment represents the global environment. Each token is parsed and hierarchized into an abstract syntax tree representing the layers of environments within each other.
-
-Errors if parsing fails:
--  Numbers lexed as such will error if they cannot be converted into `f64` or `isize` (for floats and integers, respectively)
--  Strings lexed as such error if the lexer somehow produced an invalid string literal token, or if there is no token to process
--  Booleans lexed as such error if the lexer somehow produced anything else than 'true' or 'false', if it produced something else than a boolean, or if there is no token to process
+Returns an `AstNode`, where the environment represents the global environment. Each token is parsed and hierarchized into an abstract syntax tree representing the layers of environments within each other.
 
 All errors are wrapped in the custom `ParserError` type, which implements descriptive error messages including line numbers (interpreted from new-line characters in the source file) and error contexts.
 

@@ -112,41 +112,12 @@ Crucially, however, assignments also return the assigned environment to the pare
 
 You've already met the first one, as expression assignments are simply evaluations of some operand on the right-hand side, and storing of the returned environment in the left-hand side.
 
-However, the expression assignment is actually a fair bit more complicated than that. As noted before, the right-hand side of an expression assignment is actually an anonymous environment. This implies the following:
+However, the expression assignment is actually a fair bit more complicated than that. As noted before, the right-hand side of an expression assignment is actually an anonymous environment:
 
-1. The right-hand side is evaluated first.
-2. The result of the right-hand side is returned after evaluation to the assignment function
-3. The assignment function assigns the result of the right-hand side (a thus-far anonymous environment) to the left-hand side identifier
-    - This takes the data from the right-hand side anonymous environment, copies it into a named environment, and destroys the original anonymous environment.
-4. As the assignment is complete, the assignment operator returns the named environment to the parent environment.
-
-Because assignments always return their values to the parent environment, you can **chain assignments**:
-
-```
-let x = y = 5;
-```
-
-Step by step, the interpreter:
-1. Sees the `let` keyword and takes the following identifier `x` into memory.
-    - If `x` already exists in the operating environment, the interpreter errors.
-2. Sees the `=` assignment operator.
-3. Sees that the right-hand side is another identifier `y`, and takes it into memory.
-    - If `y` already exists in the operating environment, the interpreter errors.
-4. Sees the `=` assignment operator.
-5. Sees that the right-hand side is an anonymous environment with the value `5`, and evaluates it.
-6. The anonymous environment is returned to the second assignment operator.
-7. The assignment operator assigns the returned anonymous environment `5` to the identifier `y`, creating a named environment and destroying the original anonymous environment.
-8. The named environment `y = 5;` is returned to the first assignment operator.
-9. The assignment operator assigns the returned named environment `y = 5;` to the identifier `x`, creating another named environment. Because the previous environment was also named, it is not destroyed.
-10. Finally, the environment `x` is returned to the global environment.
-
-This would normally cause a situation, where the value `5` is actually accessed by `x.y` (see above). However, because of the implicit environment call `y = 5;` and subsequent assignment, the interpreter knows to temporarily 'deanonymise' the structure. Thus, the end result is two named environments `x` and `y`, who both contain the value `5`.
-
-To avoid the flattened structure, you need to use an explicit environment assignment:
-
-```
-let x = { let y = 5 };
-```
+1. The interpreter steps to the element after the assignment operator, and starts parsing a new environment.
+2. The environment is evaluated, and is returned to the assignment operation context.
+3. The assignment operation context flattens a single-element environment (such as `let x = 5;`) and returns the result to the `let` expression context.
+4. The ´let´ expression is completed and bound to the environment within which it was declared.
 
 ### Environment assignments
 
@@ -162,69 +133,7 @@ let x = {
 
 In this case, `x` is an environment containing three environments `y`, `z` and `foo`. Each of the sub-environments contain the anonymous environments `5`, `y + 2` and `"Hello!"`. Because of its anonymity, the environment `y + 2` does not actually contain any further environments (as they would be inaccessible without a name), so it has been evaluated to `7`.
 
-If you are used to more imperative languages, this nested environment behaviour might be confusing at first. A simple analogy is a map or dictionary, e.g., in Python:
-
-``` {python}
-def x = {y: 5, z: 5+2, foo:"Hello!"}
-```
-
-Note, however, that a traditional Python dictionary would not allow for recursive references within the dictionary (`z` cannot refer to `y` as it is a key in the same dictionary) without trickery. In `Envlang`, this is easily available through expression assignments within environments.
-
-This also shows how `Envlang`'s environments can be thought of as a key-value-paired data structure, similar to `struct` in C/C++/Rust or `dict` in Python.
-
-Environment assignments can also be chained:
-
-```
-let x = y = { let z = 5; }
-```
-
-In this case, both `x` and `y` will contain explicit environments with one element, `z = 5`. Accessing `z` would be possible through `x.z` or `y.z`. Note, that `x` and `y` are not coupled because of the chained assignment -- they do not know of each other.
-
-Things get a bit more complex when a step within the chain is its own environment:
-
-```
-let x = { let y = z; } = { let z = 5; }
-```
-
-When an anonymous environment is assigned to another anonymous environment, the interpreter merges the identifiers from the right-hand side into the environment on the left-hand side:
-
-1. Evaluation starts at the innermost environment `5`, which is immediately returned to the fourth assignment operator.
-2. The value `5` is assigned to the identifier `z`.
-3. Because the right environment `{ let z = 5; }` has completed evaluation, it returns itself to the preceding third assignment operator.
-4. The interpreter notices that the left-hand side is also an environment `{ let y = z; }`, so it merges the two.
-5. Merging is done before evaluation of the left-hand side, so the middle environment now contains `{ let z = 5; let y = z; }`.
-6. The interpreter continues evaluation from the line where the merged environment ends, so it assigns `z` to `y` (the second assignment operator).
-7. The middle environment finishes evaluation and is returned to the first assignment operator.
-8. The assignment operator assigns the environment `{ let z = 5; let y = z; }` to the identifier `x`.
-9. Finally, the assignment returns itself to the global environment.
-
-As a result, the following environment members are accessible in the global environment:
-- `x` (an environment with two members)
-- `x.y` (an environment with one member)
-- `x.z` (an environment with one member)
-
-Note, that `y.z` is not a valid operation: `y` was assigned the value `z`, which contained the value `5`, so the value was **curried** directly into `y`.
-
-**Maxim 2**
-: When the left-hand operand of an assignment is an environment, the right-hand evaluation is merged into the environment.
-
-If you wanted to keep the structure of `{ let z = 5; }`, you would have to assign it to an identifier (create a named environment) prior to merging:
-
-```
-let x = { let y = a.z; } = a = { let z = 5; }
-```
-
-Remember that anonymous environments (e.g., `5` and `a.z`) are evaluated immediately!
-
-Also note the change in accessing `z` inside the environment `{ let y = a.z; }`: Because `a` is merged into the left-hand environment, `z` is accessible only through `a.z`.
-
-This results in the following global environment members:
-- `x` (evaluates to an environment)
-- `x.a` (evaluates to an environment)
-- `x.a.z` (evaluates to the value `5`)
-- `x.y` (evaluates to the value `5`)
-
-### THE FOLLOWING CHAPTERS NEED UPDATING
+This shows how `Envlang`'s environments can be thought of as a key-value-paired data structure, similar to `struct` in C/C++/Rust or `dict` in Python.
 
 ### Function assignments
 
@@ -232,56 +141,46 @@ The final assignment type is **function assignments**. Functions are declared wi
 
 ```
 let fun my_add[a, b] = {
-    return (a+b);
+    return a+b;
 }
 ```
 
-Remember the mantra: everything is an environment. This means that the above function is also an environment!
+Remember the mantra: everything is an environment - including functions.
 
 However, there are two main differences between functions and other environments:
 1. Functions are reusable, as they instantiate a new environment every time they are called.
-2. Related to the above point, function arguments are templates and not 'real' objects, so they do not exist at assignment time
-3. Functions cannot automatically access environment sibling members, so identifiers will not conflict at assignment or call time
+2. Related to the above point, function arguments are templates and not 'real' objects, so they do not exist at assignment time.
+3. Functions cannot automatically access environment sibling members, so identifiers will not conflict at assignment or call time.
 
-At face value, the function assignment could actually be rewritten as an environment assignment:
-
-```
-let my_add inherit(a, b) = {
-    a + b;
-}
-```
-
-The `inherit` keyword will be covered later, so don't worry about it.
-
-The above environment assignment is syntactically valid, and would produce the same result as the function assignment -- but only once. Since `my_add` is defined as an environment, and all normal environment assignments are constant, the value of `my_add` (`a + b`, for whatever values `a` and `b` had in the parent environment at assignment time) can never change.
-
-Functions, on the other hand, create new environments given their parameters. The function call to `my_add` will create a new environment with the parameters `a` and `b` (given to the function at call time). After this, it evaluates the environment. Finally, it returns whatever was specified with the `return` keyword (in this case, the anonymous environment `a+b` which itself is evaluated before returning) to the caller.
+Functions create new environments given their parameters. The function call to `my_add` will create a new environment with the parameters `a` and `b` (whose values are given to the function at call time). After this, it evaluates the environment. Finally, it returns whatever was specified with the `return` keyword (in this case, the anonymous environment `a+b` which itself is evaluated before returning) to the caller.
 
 Functions can be used in regular assignments:
 
 ```
-let fun my_add[a, b] = { return (a + b) };  # Whitespace does not matter, and the terminator is optional because of the braces
-let result = my_add[5, 2];                  # `result` becomes `7`
+let fun my_add[a, b] = { return a + b };    # The return statement terminator is optional because of the explicit environment.
+let result = my_add[5, 2];                  # Evaluates to ´7´.
 ```
 
 Functions can also be used in environment assignments, where they function somewhat similarly to object methods in object-oriented languages:
 
 ```
 let my_env = {
-    let a = 5;                              # Despite the same identifiers, these assignments will not mess with the function
+    let a = 5;                              # The identifiers ´a´ and ´b´ are not accessible by default in the later function environment.
     let b = 2;
-    let fun my_add[c, b] = return (a + b);  # Because of the omission of braces, we would need a terminator at the end
+    let fun my_add[a, b] = return a + b;    # The return statement terminator is mandatory because of the implicit environment.
 }
 
 let c = 7;
 let d = 3;
-let result = my_env.my_add[c, d];           # Evaluates to `10`
+let result = my_env.my_add[c, d];           # Evaluates to `10`.
 ```
 
 A few things about the above two code blocks:
-- Terminator semicolons are optional with explicit environments, including when defining functions
-- A simple function can be written as a single line, either as an explicit or implicit environment
-- Since functions do not have access to environment siblings, `my_add` does not know about `a` or `b` within `my_env` -- therefore, they do not conflict with one another.
+- Return statement terminator semicolons are optional with explicit environments, but mandatory with implicit environments.
+- A simple function can be written as a single line, either as an explicit or implicit environment.
+- By default, functions do not have access to sibling elements within their declaration environments.
+
+Regarding the last point, functions can optionally be given access to sibling elements using **inheritance**.
 
 ## Inheritance
 
@@ -289,7 +188,9 @@ Environments observe the following rules:
 1. Child environments cannot access parent environment members.
 2. Parent environments can only access child environment members through the accessor operator `.`
 
-These can become cumbersome or hindering at times. Because of this, `Envlang` implements an `inherit` keyword to let you specify environment inheritance:
+These can become cumbersome or hindering at times. Because of this, `Envlang` implements the `inherit` keyword.
+
+The `inherit` keyword must be followed by a parenthesis-encased, comma-separated list of inheritance elements:
 
 ```
 let outer = {
@@ -303,13 +204,13 @@ let outer = {
 
 In the above code, the implicit environments `x` and `y` are handed as inherited environments to `inner`, making them accessible inside the inner environment, making `z` evaluate to `5`.
 
-The `inherit` keyword must be followed by a parenthesis-encased, comma-separated list of inheritance elements. These elements must be accessible to the calling environment:
+The elements of `inherit` must be accessible to the calling environment:
 
 ```{tag=error}
 let x = 5;
 let outer = {
     let y = 2;
-    let inner inherit (x, y) = { # ERROR: `x` not available in scope
+    let inner inherit (x, y) = {            # ERROR: `x` not available in scope
         let z = x + y;
     }
 }
@@ -317,11 +218,7 @@ let outer = {
 
 Because `outer` does not actually have access to `x`, it also cannot inherit it to `inner`. This code will error once the interpreter hits the `let inner` assignment, because it finds that `x` is not available in the calling scope. A simple fix would be to let `outer` inherit `x`.
 
-In some cases, it might be preferable to inherit everything from the parent environment. `Envlang` allows for a short-hand for this:
-
-Note, that a function assignment does not allow for inheritance. Instead, functions should simply be called with the elements needed (inheriting previously from parent environments if necessary).
-
-Also note, that you cannot *both* declare inherited environments and the wildcard -- it has to be either or.
+In some cases, it might be preferable to inherit everything from the parent environment. `Envlang` allows for a short-hand for this, using **the wildcard operator**.
 
 ## The wildcard operator `*`
 
@@ -336,31 +233,20 @@ let outer = {
     let inner inherit (*) = {
         let z = 5 + 2;
         let surname = "Doe";
-        ...
     }
 }
 
 let fun construct_full_name[first, last] = {
-    let result = first + last;
-    return (*)
+    return first + last;
 }
 
-let name_env = construct_full_name[outer.inner.first_name, outer.inner.surname];
+let name = construct_full_name[outer.inner.first_name, outer.inner.surname];
 ```
 
 Let's break the above code down:
-1. The first line assigns an environment to `outer`, which contains four objects (themselves containing anonymous environments) and an inner environment `inner`
-2. The `inner` environment inherits all elements of the `outer` environment because of the `inherit (*)` declaration
+1. The first line assigns an environment to `outer`, which contains four objects (themselves containing anonymous environments) and an inner environment `inner`.
+2. The `inner` environment inherits all elements of the `outer` environment because of the `inherit (*)` declaration.
 3. The function `construct_full_name` takes two parameters: `first` and `last`.
-4. The function creates a new object called `result`, itself an anonymous environment consisting of `first + last`.
-5. The function returns `result`, `first`, and `last` because of the `return (*)` declaration
-6. The final assignment consists of a function call to `construct_full_name`, using the elements found inside `inner`. The `first_name` could have been retrieved either from `inner` or `outer`, since the object was inherited from `outer` to `inner`.
-7. The evaluation of the final assignment results in an environment containing: `result = "JohnDoe"`, `first_name = "John"`, and `surname = "Doe"`. This is because `construct_full_name` was told to return all objects with the wildcard, *including the ones passed into it as arguments*.
-
-Note, that the performance loss on accessing inherited objects as opposed to original objects should be minimal-to-zero, as all objects are passed-by-reference.
-
-While this code does not necessarily make sense (`construct_full_name` should probably just return the full name), it enables a very powerful functional pattern: **piping**.
-
-## Piping
-
-NYI.
+4. The function evaluates and returns the result of the binary operation `first + last`.
+5. The final assignment consists of a function call to `construct_full_name`, using the elements found inside `inner`. The `first_name` could have been retrieved either from `inner` or `outer`, since the object was inherited from `outer` to `inner`.
+6. The final assignment results in a `name` string containing the result of concatenating `outer.inner.first_name` and `outer.inner.surname`.

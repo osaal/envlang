@@ -1,18 +1,4 @@
-//! Envlang: An environment-based interpreted language
-//! 
-//! Envlang is an interpreted language based entirely around environments (sometimes called closures in other languages).
-//! 
-//! It is primarily intended to be used with the CLI binary, which is constructed by the [`main()`] function.
-//! 
-//! [`main()`]: ./fn.main.html
-
-mod environment;
-mod unicodesegmenters;
-mod symbols;
-mod parser;
-mod io;
-mod lexer;
-
+use envlang;
 use std::env;
 
 /// The Envlang command-line interface binary
@@ -21,7 +7,7 @@ use std::env;
 /// 
 /// # Usage
 /// Once compiled and accessible from the terminal, envlang is run with a simple one-argument command:
-/// ```no_run
+/// ```text
 /// envlang path/to/file.envl
 /// ```
 /// 
@@ -48,6 +34,6 @@ fn main() {
 
     // Read in file
     let file_path = &args[1];
-    let env_file = io::read_file(file_path).unwrap(); // TODO: Handle errors
+    let env_file = envlang::io::read_file(file_path).unwrap(); // TODO: Handle errors
     dbg!(env_file);
 }
