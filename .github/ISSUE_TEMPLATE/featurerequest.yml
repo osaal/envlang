@@ -1,0 +1,34 @@
+name: Feature Request
+description: Request a feature.
+title: "[Feat]: "
+labels: ["request"]
+assignees:
+  - osaal
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What is the feature about?
+      description: |
+        Describe what the feature is. Give appropriate implementation details, such as how it should behave. If possible and reasonable, note which parts of the interpreter pipeline the feature presumably affects.
+      placeholder: |
+        Please add a print function.
+        The function should take user input and return it to stdout (the terminal).
+        The function should preferably format user input into a human-readable form, regardless of the input data type (e.g., environments, functions).
+        A print function would affect the entire pipeline from lexing through to execution.
+  - type: textarea
+    id: enables
+    attributes:
+      label: Why is the feature necessary?
+      description: |
+        Describe what the feature enables the user to do.
+      placeholder: |
+        A print function would allow Envlang to return output to stdout for user viewing or piping into other programs.
+  - type: textarea
+    id: workarounds
+    attributes:
+      label: Could the feature currently be done with Envlang?
+      description: |
+        Describe a workaround, even if complicated. If there is none, try to describe why the feature cannot be done without direct implementation in Envlang.
+      placeholder: |
+        Envlang currently does not support outputting anything. A print function would allow Envlang to return values to the user.
