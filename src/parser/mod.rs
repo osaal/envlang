@@ -552,9 +552,6 @@ impl Parser {
             value: None,
             inherit: None
         };
-
-        // TODO: A function call context should not contain an inheritance clause (though it is a soft error). We can check this from the "inherit" field of result.
-        // TODO: The function call will have argument bracket notation in-between the identifier (outside this context) and the assignment operator (in the match arm here)
     
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {

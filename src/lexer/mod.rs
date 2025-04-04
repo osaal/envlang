@@ -151,7 +151,6 @@ impl Lexer {
         }
 
         // Validate first character to exit early in case of inappropriate input
-        // TODO: Write test to check this error's pos value, in case we are off-by-one
         if !unicode_string.chars().all(|c| c.is_ascii_digit()) {
             return Err(LexerError::InvalidToken(pos, unicode_string.to_string()));
         }
