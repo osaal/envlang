@@ -1,0 +1,86 @@
+name: Bug Report
+description: File a bug report.
+title: "[Bug]: "
+labels: ["bug"]
+assignees:
+  - osaal
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for filling out a bug report.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Please describe the bug in a condensed manner (preferably one to two lines).
+      placeholder: The program outputted the wrong calculation.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      description: Describe the expected behaviour, such as the output of Envlang.
+      placeholder: The program should have outputted `5`.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+      description: Describe the actual behaviour, in the same manner as the expected behaviour.
+      placeholder: |
+        The program outputted `3`.
+
+        Tip: If Envlang encountered an error, you can either copy the error text from the terminal or redirect both output and errors into a file and upload that file: `envlang file.envl &> bugreport.txt`.
+        Tip: You can attach screenshots and logs just by dragging-and-dropping them into this box.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: How can the bug be minimally reproduced?
+      description: Give a minimal step-by-step on how to reproduce the bug. Required only if the bug is more complex than just running the repro code (see below).
+      placeholder: |
+        Step 1: Load the preparatory variables into Envlang from this Gist: https://example.com
+        Step 2: Load and execute the repro code.
+    validations:
+      required: false
+  - type: textarea
+    id: repro-code
+    attributes:
+      label: Minimally reproducible code
+      description: Give a minimal code snippet that is able to reproduce the bug. The code snippet should not contain any external resources (unless the bug is in loading resources) or extra calculations, just the bare necessities for reproducing the bug.
+      placeholder: |
+        let x = 3;
+        print[x];
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: What OS are you running?
+    validations:
+      required: true
+  - type: input
+    id: osversion
+    attributes:
+      label: What version of your OS are you running?
+    validations:
+      required: true
+  - type: input
+    id: rustcversion
+    attributes:
+      label: What version of `rustc` are you running?
+      description: Copy the output from `rustc --version`
+    validations:
+      required: true
+  - type: input
+    id: cargoversion
+    attributes:
+      label: What version of `cargo` are you running?
+      description: Copy the output form `cargo --version`
+    validations:
+      required: true
