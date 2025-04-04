@@ -369,7 +369,6 @@ mod tests {
             Token::Keyword(Keywords::RETURN),
             Token::LeftBrace(ReservedSymbols::ENVOPEN),
             Token::RightBrace(ReservedSymbols::ENVCLOSE),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
             Token::RightBrace(ReservedSymbols::ENVCLOSE),
             Token::EOF
         ];

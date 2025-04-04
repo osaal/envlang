@@ -17,7 +17,9 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 #### Minor changes
 
-- Updated `STRUCTURE.md` and `NEWSTRUCTURE.md` to reflect the finished rewrite.
+- Changed a test to check for lack of terminators in explicit return environments.
+- Removed `NEWSTRUCTURE.md`.
+- Updated `STRUCTURE.md` and `Basics.md` to match rewrite.
 
 ### Version 0.5.10
 
