@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::symbols::{ArithmeticOperators, OtherOperators, ReservedSymbols, Operators, Booleans, Keywords};
+    use crate::symbols::{ArithmeticOperators, OtherOperators, Operators, Booleans, Keywords};
     use crate::lexer::{Lexer, LexerError, Token};
     use std::rc::Rc;
 
@@ -37,28 +37,28 @@ mod tests {
     fn matches_left_brace() {
         let input = vec!["{".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::LeftBrace(ReservedSymbols::ENVOPEN), Token::EOF]);
+        assert_eq!(tokens, vec![Token::LeftBrace, Token::EOF]);
     }
 
     #[test]
     fn matches_right_brace() {
         let input = vec!["}".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::RightBrace(ReservedSymbols::ENVCLOSE), Token::EOF]);
+        assert_eq!(tokens, vec![Token::RightBrace, Token::EOF]);
     }
 
     #[test]
     fn matches_left_parenthesis() {
         let input = vec!["(".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::LeftParen(ReservedSymbols::INHERITOPEN), Token::EOF]);
+        assert_eq!(tokens, vec![Token::LeftParen, Token::EOF]);
     }
 
     #[test]
     fn matches_right_parenthesis() {
         let input = vec![")".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::RightParen(ReservedSymbols::INHERITCLOSE), Token::EOF]);
+        assert_eq!(tokens, vec![Token::RightParen, Token::EOF]);
     }
 
     #[test]
@@ -247,7 +247,7 @@ mod tests {
     fn matches_line_terminator() {
         let input = vec![";".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::LineTerminator(ReservedSymbols::TERMINATOR), Token::EOF]);
+        assert_eq!(tokens, vec![Token::LineTerminator, Token::EOF]);
     }
 
     // Complex token sequence tests
