@@ -153,7 +153,7 @@ impl Parser {
 
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
-                Token::LeftBrace(_) => {
+                Token::LeftBrace => {
                     // Ignore extra left brace in the global environment
                     if parent.is_none() { continue; };
 
@@ -171,16 +171,16 @@ impl Parser {
                         continue;
                     }
                 },
-                Token::RightBrace(_) => {
+                Token::RightBrace => {
                     // Ignore extra right brace in the global environment
                     if parent.is_none() { continue; };
                     return Ok(current_env);
                 },
-                Token::LeftParen(_) => continue,        // Covered by parse_inherit_clause
-                Token::RightParen(_) => continue,       // Covered by parse_inherit_clause
+                Token::LeftParen => continue,           // Covered by parse_inherit_clause
+                Token::RightParen => continue,          // Covered by parse_inherit_clause
                 Token::Comma => continue,               // Covered by parse_inherit_clause and parse_function_clause
-                Token::LeftBracket(_) => continue,      // Covered by parse_function_clause
-                Token::RightBracket(_) => continue,     // Covered by parse_function_clause
+                Token::LeftBracket => continue,         // Covered by parse_function_clause
+                Token::RightBracket => continue,        // Covered by parse_function_clause
                 Token::Keyword(Keywords::INHERIT) => {  // Covered by construct_let_statement
                     continue;
                 },
@@ -191,7 +191,7 @@ impl Parser {
                     let mut inner_context = ParseContext::Normal;
                     if let Some(token) = self.peek() {
                         match token {
-                            Token::LeftBracket(_) => inner_context = ParseContext::FunctionCall,
+                            Token::LeftBracket => inner_context = ParseContext::FunctionCall,
                             _ => (),
                         }
                     }
@@ -265,7 +265,7 @@ impl Parser {
                         return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
                     }
                 },
-                Token::LineTerminator(_) => {
+                Token::LineTerminator => {
                     match context {
                         ParseContext::Operation => {
                             // Return the right-hand side of the operation
@@ -387,7 +387,7 @@ impl Parser {
         // Step 2: Parse function arguments (no allowed whitespace between name and arguments)
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
-                Token::LeftBracket(_) => {
+                Token::LeftBracket => {
                     fn_args = Some(self.parse_function_clause()?);
                     break;
                 },
@@ -478,7 +478,7 @@ impl Parser {
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
-                Token::LeftBracket(_) => {
+                Token::LeftBracket => {
                     // If the element vector is non-empty, this represents a syntax error
                     if let Some(names) = result.get_params() {
                         if !names.is_empty() {
@@ -487,7 +487,7 @@ impl Parser {
                     }
                     continue;
                 },
-                Token::RightBracket(_) => {
+                Token::RightBracket => {
                     // Finish parsing identifiers and return
                     return Ok(result);
                 },
@@ -595,7 +595,7 @@ impl Parser {
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
-                Token::LeftParen(_) => {
+                Token::LeftParen => {
                     // If the element vector is non-empty, this represents a syntax error
                     if let Some(names) = inheritance_arg.get_inherited_names() {
                         if !names.is_empty() {
@@ -604,7 +604,7 @@ impl Parser {
                     }
                     continue;
                 },
-                Token::RightParen(_) => {
+                Token::RightParen => {
                     return Ok(inheritance_arg);
                 },
                 Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)) => {
@@ -684,7 +684,7 @@ impl Parser {
         let mut call_args = Rc::new(AstNode::FunctionArgs(vec![]));
         while let Some((pos, token)) = self.advance() {
             match token.borrow() {
-                Token::LeftBracket(_) => {
+                Token::LeftBracket => {
                     call_args = Rc::new(self.parse_function_clause()?);
                     break;
                 },

@@ -74,65 +74,6 @@ impl ToString for OtherOperators {
     }
 }
 
-/// Types of generic symbols
-/// 
-/// The enum derives the traits `Debug`, and `Clone`.
-#[derive(Debug, Clone)]
-pub enum GenericSymbols {
-    /// The `-` symbol (U+002D)
-    DASH,
-    /// The `_` symbol (U+005F)
-    UNDERSCORE,
-}
-
-/// Types of reserved symbols
-/// 
-/// The enum derives the traits `Debug`, `Clone`, `PartialEq` and `Eq`, and implements [`ToString`](ReservedSymbols::to_string).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReservedSymbols {
-    /// The `;` symbol (U+003B)
-    TERMINATOR,
-    /// The `{` symbol (U+007B)
-    ENVOPEN,
-    /// The `}` symbol (U+007D)
-    ENVCLOSE,
-    /// The `(` symbol (U+0028)
-    INHERITOPEN,
-    /// The `)` symbol (U+0029)
-    INHERITCLOSE,
-    /// The `[` symbol (U+005B)
-    FUNARGOPEN,
-    /// The `]` symbol (U+005D)
-    FUNARGCLOSE,
-}
-
-impl ToString for ReservedSymbols {
-    fn to_string(&self) -> String {
-        match self {
-            ReservedSymbols::TERMINATOR => ";".to_string(),
-            ReservedSymbols::ENVOPEN => "{".to_string(),
-            ReservedSymbols::ENVCLOSE => "}".to_string(),
-            ReservedSymbols::INHERITOPEN => "(".to_string(),
-            ReservedSymbols::INHERITCLOSE => ")".to_string(),
-            ReservedSymbols::FUNARGOPEN => "[".to_string(),
-            ReservedSymbols::FUNARGCLOSE => "]".to_string(),
-        }
-    }
-}
-
-/// Types of string-related symbols
-/// 
-/// The enum derives the traits `Debug`, and `Clone`.
-#[derive(Debug, Clone)]
-pub enum StringSymbols {
-    /// The `"` symbol (U+0022)
-    DOUBLEQUOTE,
-    /// The `'` symbol (U+0027)
-    SINGLEQUOTE,
-    /// The `\\` symbol (U+005C)
-    ESCAPE,
-}
-
 /// Reserved keywords
 /// 
 /// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements [`ToString`](Keywords::to_string).

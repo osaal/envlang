@@ -1,14 +1,14 @@
-use crate::symbols::{Booleans, Keywords, Operators, OtherOperators, ReservedSymbols};
+use crate::symbols::{Booleans, Keywords, Operators};
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
-    LeftBrace(ReservedSymbols),
-    RightBrace(ReservedSymbols),
-    LeftParen(ReservedSymbols),
-    RightParen(ReservedSymbols),
-    LeftBracket(ReservedSymbols),
-    RightBracket(ReservedSymbols),
+    LeftBrace,
+    RightBrace,
+    LeftParen,
+    RightParen,
+    LeftBracket,
+    RightBracket,
     Identifier(Rc<str>),
     Number(Rc<str>),
     StringLiteral(Rc<str>),
@@ -16,7 +16,7 @@ pub enum Token {
     Keyword(Keywords),
     Whitespace(Rc<str>),
     Operator(Operators),
-    LineTerminator(ReservedSymbols),
+    LineTerminator,
     Comma,
     EOF,
 }
@@ -30,15 +30,15 @@ impl ToString for Token {
             Token::Identifier(i) => i.to_string(),
             Token::Keyword(k) => k.to_string(),
             Token::Operator(o) => o.to_string(),
-            Token::LeftBrace(b)
-            | Token::RightBrace(b)
-            | Token::LeftParen(b)
-            | Token::RightParen(b)
-            | Token::LeftBracket(b)
-            | Token::RightBracket(b) => b.to_string(),
+            Token::LeftBrace => "{".to_string(),
+            Token::RightBrace => "}".to_string(),
+            Token::LeftParen => "(".to_string(),
+            Token::RightParen => ")".to_string(),
+            Token::LeftBracket => "[".to_string(),
+            Token::RightBracket => "]".to_string(),
             Token::Whitespace(w) => w.to_string(),
-            Token::EOF => "end of file".to_string(),
-            Token::LineTerminator(lt) => lt.to_string(),
+            Token::EOF => "EOF".to_string(),
+            Token::LineTerminator => ";".to_string(),
             Token::Comma => ",".to_string(),
         }
     }
