@@ -2,7 +2,7 @@
 mod tests {
     use crate::lexer::Token;
     use crate::parser::{Parser, AstNode, ParserError};
-    use crate::symbols::{Keywords, ReservedSymbols, Operators, ArithmeticOperators, OtherOperators};
+    use crate::symbols::{Keywords, Operators, ArithmeticOperators, OtherOperators};
     use std::rc::Rc;
 
     // Basic cases
@@ -59,7 +59,7 @@ mod tests {
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -81,7 +81,7 @@ mod tests {
             Token::Number("5".into()),
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
             Token::Number("3".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -103,7 +103,7 @@ mod tests {
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ACCESSOR)),
             Token::Identifier("y".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF,
         ];
         let mut parser = Parser::new(tokens);
@@ -127,7 +127,7 @@ mod tests {
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Identifier("y".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -146,9 +146,9 @@ mod tests {
     #[test]
     fn nested_environments() {
         let tokens = vec![
-        Token::LeftBrace(ReservedSymbols::ENVOPEN),
+        Token::LeftBrace,
         Token::Number("1".into()),
-        Token::RightBrace(ReservedSymbols::ENVCLOSE),
+        Token::RightBrace,
         Token::Number("2".into()),
         Token::EOF
         ];
@@ -172,13 +172,13 @@ mod tests {
     #[test]
     fn environment_with_assignment() {
         let tokens = vec![
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::LET),
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator,
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -205,9 +205,9 @@ mod tests {
         let tokens = vec![
             Token::Number("5".into()),
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Number("3".into()),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -230,7 +230,7 @@ mod tests {
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
             Token::Whitespace("\n".into()),
             Token::Number("3".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -251,14 +251,14 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Identifier("x".into()),
             Token::Keyword(Keywords::INHERIT),
-            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::LeftParen,
             Token::Identifier("a".into()),
             Token::Comma,
             Token::Identifier("b".into()),
-            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::RightParen,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -285,12 +285,12 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Identifier("x".into()),
             Token::Keyword(Keywords::INHERIT),
-            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::LeftParen,
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
-            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::RightParen,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -316,12 +316,12 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LeftBracket,
+            Token::RightBracket,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Keyword(Keywords::RETURN),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -362,14 +362,14 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LeftBracket,
+            Token::RightBracket,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::RETURN),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LeftBrace,
+            Token::RightBrace,
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -410,17 +410,17 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::LeftBracket,
             Token::Identifier("x".into()),
             Token::Comma,
             Token::Identifier("y".into()),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::RightBracket,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::RETURN),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator,
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -464,20 +464,20 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LeftBracket,
+            Token::RightBracket,
             Token::Keyword(Keywords::INHERIT),
-            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::LeftParen,
             Token::Identifier("x".into()),
             Token::Comma,
             Token::Identifier("y".into()),
-            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::RightParen,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::RETURN),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator,
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -523,18 +523,18 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LeftBracket,
+            Token::RightBracket,
             Token::Keyword(Keywords::INHERIT),
-            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::LeftParen,
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
-            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::RightParen,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::RETURN),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator,
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -577,26 +577,26 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LeftBracket,
+            Token::RightBracket,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::LET),
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("1".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::Keyword(Keywords::LET),
             Token::Identifier("y".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("2".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::Keyword(Keywords::RETURN),
             Token::Identifier("x".into()),
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
             Token::Identifier("y".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator,
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -654,17 +654,17 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::LeftBracket,
             Token::Identifier("x".into()),
             Token::Comma,
             Token::Identifier("y".into()),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::RightBracket,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Keyword(Keywords::RETURN),
             Token::Identifier("x".into()),
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
             Token::Identifier("y".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -714,16 +714,16 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LeftBracket,
+            Token::RightBracket,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::RETURN),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Number("5".into()),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::RightBrace,
+            Token::LineTerminator,
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -764,30 +764,30 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Keyword(Keywords::FUN),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
+            Token::LeftBracket,
+            Token::RightBracket,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::RETURN),
-            Token::LeftBrace(ReservedSymbols::ENVOPEN),
+            Token::LeftBrace,
             Token::Keyword(Keywords::LET),
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::Keyword(Keywords::LET),
             Token::Identifier("y".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("3".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::Keyword(Keywords::LET),
             Token::Identifier("z".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("1".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
-            Token::RightBrace(ReservedSymbols::ENVCLOSE),
+            Token::LineTerminator,
+            Token::RightBrace,
+            Token::LineTerminator,
+            Token::RightBrace,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -845,9 +845,9 @@ mod tests {
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LeftBracket,
+            Token::RightBracket,
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -877,10 +877,10 @@ mod tests {
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::LeftBracket,
             Token::Identifier("y".into()),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBracket,
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -912,14 +912,14 @@ mod tests {
             Token::Identifier("x".into()),
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Identifier("foo".into()),
-            Token::LeftBracket(ReservedSymbols::FUNARGOPEN),
+            Token::LeftBracket,
             Token::Identifier("y".into()),
             Token::Comma,
             Token::Identifier("z".into()),
             Token::Comma,
             Token::Identifier("a".into()),
-            Token::RightBracket(ReservedSymbols::FUNARGCLOSE),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::RightBracket,
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -994,14 +994,14 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Identifier("x".into()),
             Token::Keyword(Keywords::INHERIT),
-            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::LeftParen,
             Token::Identifier("a".into()),
             Token::Comma,
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
-            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::RightParen,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
@@ -1016,14 +1016,14 @@ mod tests {
             Token::Keyword(Keywords::LET),
             Token::Identifier("x".into()),
             Token::Keyword(Keywords::INHERIT),
-            Token::LeftParen(ReservedSymbols::INHERITOPEN),
+            Token::LeftParen,
             Token::Operator(Operators::Arithmetic(ArithmeticOperators::MULTIPLY)),
             Token::Comma,
             Token::Identifier("a".into()),
-            Token::RightParen(ReservedSymbols::INHERITCLOSE),
+            Token::RightParen,
             Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
             Token::Number("5".into()),
-            Token::LineTerminator(ReservedSymbols::TERMINATOR),
+            Token::LineTerminator,
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);
