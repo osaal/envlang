@@ -17,7 +17,6 @@ pub enum Token {
     Whitespace(Rc<str>),
     Operator(Operators),
     LineTerminator(ReservedSymbols),
-    FullStop(OtherOperators),
     Comma,
     EOF,
 }
@@ -37,7 +36,6 @@ impl ToString for Token {
             | Token::RightParen(b)
             | Token::LeftBracket(b)
             | Token::RightBracket(b) => b.to_string(),
-            Token::FullStop(fs) => fs.to_string(),
             Token::Whitespace(w) => w.to_string(),
             Token::EOF => "end of file".to_string(),
             Token::LineTerminator(lt) => lt.to_string(),

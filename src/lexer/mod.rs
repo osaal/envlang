@@ -123,7 +123,7 @@ impl Lexer {
                 "+" | "-" | "*" | "/" | "%" | "^" | "=" =>
                     tokens.push(self.tokenize_operator(&unicode_string, pos)?),
                 "." =>
-                    tokens.push(Token::FullStop(OtherOperators::ACCESSOR)),
+                    tokens.push(Token::Operator(Operators::Other(OtherOperators::ACCESSOR))),
                 "," =>
                     tokens.push(Token::Comma),
                 ";" =>
