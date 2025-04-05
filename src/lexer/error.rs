@@ -22,6 +22,7 @@ pub enum LexerError {
     SliceOutOfBounds(usize, usize, usize),  // (pos, end, input_len)
     IndexOutOfBounds(usize, usize, usize),  // (pos, idx, input_len)
     UnrecognizedInput(usize, String),       // (pos, input)
+    InvalidOperator(usize, String),         // (pos, input)
 }
 
 impl Error for LexerError {}
@@ -44,7 +45,9 @@ impl fmt::Display for LexerError {
             LexerError::IndexOutOfBounds(pos, idx, len) =>
                 write!(f, "Lexer error at position {}: Attempted to access element at index {} from input with length {}", pos, idx, len),
             LexerError::UnrecognizedInput(pos, input) =>
-                write!(f, "Lexer error at position {}: Unrecognized input stream '{}'", pos, input)
+                write!(f, "Lexer error at position {}: Unrecognized input stream '{}'", pos, input),
+            LexerError::InvalidOperator(pos, input) =>
+                write!(f, "Lexer error at position {}: Unrecognized first symbol for comparison operator '{}'", pos, input),
         }
     }
 }

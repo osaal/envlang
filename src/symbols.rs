@@ -10,6 +10,7 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operators {
     Arithmetic(ArithmeticOperators),
+    Comparison(ComparisonOperators),
     Other(OtherOperators),
 }
 
@@ -17,6 +18,7 @@ impl ToString for Operators {
     fn to_string(&self) -> String {
         match self {
             Operators::Arithmetic(op) => op.to_string(),
+            Operators::Comparison(op) => op.to_string(),
             Operators::Other(op) => op.to_string(),
         }
     }
@@ -50,6 +52,38 @@ impl ToString for ArithmeticOperators {
             ArithmeticOperators::MULTIPLY => "*".to_string(),
             ArithmeticOperators::MODULUS => "%".to_string(),
             ArithmeticOperators::EXPONENTIATION => "^".to_string(),
+        }
+    }
+}
+
+/// Types of comparison operators
+/// 
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements [`ToString`](ComparisonOperators::to_string).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ComparisonOperators {
+    /// The less-than operator `<`
+    LT,
+    /// The less-than-or-equal operator `<=`
+    LEQ,
+    /// The greater-than operator `>`
+    GT,
+    /// The greater-than-or-equal operator `>=`
+    GEQ,
+    /// The equal operator `==`
+    EQ,
+    /// The not-equal operator `!=`
+    NEQ,
+}
+
+impl ToString for ComparisonOperators {
+    fn to_string(&self) -> String {
+        match self {
+            ComparisonOperators::LT => "<".to_string(),
+            ComparisonOperators::LEQ => "<=".to_string(),
+            ComparisonOperators::GT => ">".to_string(),
+            ComparisonOperators::GEQ => ">=".to_string(),
+            ComparisonOperators::EQ => "==".to_string(),
+            ComparisonOperators::NEQ => "!=".to_string(),
         }
     }
 }
