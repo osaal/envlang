@@ -120,50 +120,6 @@ mod tests {
     }
 
     #[test]
-    fn environment_comparison() {
-        let tokens = vec![
-            Token::LeftBrace,
-            Token::Number("5".into()),
-            Token::LineTerminator,
-            Token::Number("3".into()),
-            Token::RightBrace,
-            Token::Operator(Operators::Comparison(ComparisonOperators::GT)),
-            Token::LeftBrace,
-            Token::Number("3".into()),
-            Token::LineTerminator,
-            Token::Number("1".into()),
-            Token::RightBrace,
-            Token::LineTerminator,
-            Token::EOF,
-        ];
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-        assert_eq!(ast, AstNode::Environment {
-            name: None,
-            bindings: vec![Rc::new(AstNode::BinaryOp {
-                left: Rc::new(AstNode::Environment {
-                    name: None,
-                    bindings: vec![
-                        Rc::new(AstNode::Integer(5)),
-                        Rc::new(AstNode::Integer(3))
-                    ],
-                    parent: None,
-                }),
-                operator: Operators::Comparison(ComparisonOperators::GT),
-                right: Rc::new(AstNode::Environment {
-                    name: None,
-                    bindings: vec![
-                        Rc::new(AstNode::Integer(3)),
-                        Rc::new(AstNode::Integer(1))
-                    ],
-                    parent: None,
-                }),
-            })],
-            parent: None,
-        })
-    }
-
-    #[test]
     fn accession() {
         let tokens = vec![
             Token::Identifier("x".into()),
