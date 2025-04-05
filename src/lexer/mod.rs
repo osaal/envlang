@@ -27,7 +27,7 @@ mod tests;
 pub use token::Token;
 pub use error::LexerError;
 
-use crate::symbols::{Keywords, Booleans, ArithmeticOperators, OtherOperators, Operators, ReservedSymbols};
+use crate::symbols::{Keywords, Booleans, ArithmeticOperators, OtherOperators, Operators};
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -105,17 +105,17 @@ impl Lexer {
         while let Some((pos, unicode_string)) = self.iterate() {
             match unicode_string.borrow() {
                 "{" =>
-                    tokens.push(Token::LeftBrace(ReservedSymbols::ENVOPEN)),
+                    tokens.push(Token::LeftBrace),
                 "}" =>
-                    tokens.push(Token::RightBrace(ReservedSymbols::ENVCLOSE)),
+                    tokens.push(Token::RightBrace),
                 "(" =>
-                    tokens.push(Token::LeftParen(ReservedSymbols::INHERITOPEN)),
+                    tokens.push(Token::LeftParen),
                 ")" =>
-                    tokens.push(Token::RightParen(ReservedSymbols::INHERITCLOSE)),
+                    tokens.push(Token::RightParen),
                 "[" =>
-                    tokens.push(Token::LeftBracket(ReservedSymbols::FUNARGOPEN)),
+                    tokens.push(Token::LeftBracket),
                 "]" =>
-                    tokens.push(Token::RightBracket(ReservedSymbols::FUNARGCLOSE)),
+                    tokens.push(Token::RightBracket),
                 "\"" =>
                     tokens.push(self.tokenize_string("\"", pos)?),
                 "'" =>
@@ -127,7 +127,7 @@ impl Lexer {
                 "," =>
                     tokens.push(Token::Comma),
                 ";" =>
-                    tokens.push(Token::LineTerminator(ReservedSymbols::TERMINATOR)),
+                    tokens.push(Token::LineTerminator),
                 unicode_string if unicode_string.chars().all(|c| c.is_ascii_digit()) =>
                     tokens.push(self.tokenize_number(unicode_string, pos)?),
                 unicode_string if unicode_string.chars().all(|c| c.is_alphabetic()) =>
