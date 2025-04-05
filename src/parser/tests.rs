@@ -2,7 +2,7 @@
 mod tests {
     use crate::lexer::Token;
     use crate::parser::{Parser, AstNode, ParserError};
-    use crate::symbols::{Keywords, Operators, ArithmeticOperators, ComparisonOperators, OtherOperators, Booleans};
+    use crate::symbols::{Keywords, Operators, ArithmeticOperators, ComparisonOperators, LogicalOperators, OtherOperators, Booleans};
     use std::rc::Rc;
 
     // Basic cases
@@ -113,6 +113,28 @@ mod tests {
             bindings: vec![Rc::new(AstNode::BinaryOp {
                 left: Rc::new(AstNode::Boolean(true)),
                 operator: Operators::Comparison(ComparisonOperators::NEQ),
+                right: Rc::new(AstNode::Boolean(false)),
+            })],
+            parent: None,
+        })
+    }
+
+    #[test]
+    fn logical_operator() {
+        let tokens = vec![
+            Token::Boolean(Booleans::TRUE),
+            Token::Operator(Operators::Logical(LogicalOperators::AND)),
+            Token::Boolean(Booleans::FALSE),
+            Token::LineTerminator,
+            Token::EOF,
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::BinaryOp {
+                left: Rc::new(AstNode::Boolean(true)),
+                operator: Operators::Logical(LogicalOperators::AND),
                 right: Rc::new(AstNode::Boolean(false)),
             })],
             parent: None,
