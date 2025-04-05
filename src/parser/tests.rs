@@ -21,7 +21,7 @@ mod tests {
     fn float() {
         let tokens = vec![
             Token::Number("5".into()),
-            Token::FullStop(OtherOperators::ACCESSOR),
+            Token::Operator(Operators::Other(OtherOperators::ACCESSOR)),
             Token::Number("0".into()),
             Token::EOF
         ];
@@ -101,7 +101,7 @@ mod tests {
     fn accession() {
         let tokens = vec![
             Token::Identifier("x".into()),
-            Token::FullStop(OtherOperators::ACCESSOR),
+            Token::Operator(Operators::Other(OtherOperators::ACCESSOR)),
             Token::Identifier("y".into()),
             Token::LineTerminator(ReservedSymbols::TERMINATOR),
             Token::EOF,
@@ -952,9 +952,9 @@ mod tests {
     fn malformed_number() {
         let tokens = vec![
             Token::Number("5".into()),
-            Token::FullStop(OtherOperators::ACCESSOR),
+            Token::Operator(Operators::Other(OtherOperators::ACCESSOR)),
             Token::Number("0".into()),
-            Token::FullStop(OtherOperators::ACCESSOR),
+            Token::Operator(Operators::Other(OtherOperators::ACCESSOR)),
             Token::Number("0".into()),
             Token::EOF
         ];
@@ -979,7 +979,7 @@ mod tests {
     #[test]
     fn cannot_start_with_fullstop() {
         let tokens = vec![
-            Token::FullStop(OtherOperators::ACCESSOR),
+            Token::Operator(Operators::Other(OtherOperators::ACCESSOR)),
             Token::EOF
         ];
         let mut parser = Parser::new(tokens);

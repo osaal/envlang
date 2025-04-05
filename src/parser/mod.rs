@@ -248,22 +248,6 @@ impl Parser {
                         _ => return Err(ParserError::UnexpectedReturn(pos, self.line)),
                     }
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
-                Token::FullStop(op) => {
-                    let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
-                        bindings.pop()
-                    } else {
-                        None
-                    };
-                    if let Some(prev_operand) = prev_operand {
-                        let env_rc: Rc<AstNode> = Rc::new(current_env.clone());
-                        let node: AstNode = self.parse_operator(Some(env_rc), &Operators::Other(op.clone()), &prev_operand)?;
-                        if let AstNode::Environment { ref mut bindings, .. } = current_env {
-                            bindings.push(Rc::new(node));
-                        }
-                    } else {
-                        return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
-                    }
-                },
                 Token::Operator(op) => {
                     let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.pop()
@@ -273,6 +257,7 @@ impl Parser {
                     if let Some(prev_operand) = prev_operand {
                         let env_rc: Rc<AstNode> = Rc::new(current_env.clone());
                         let node: AstNode = self.parse_operator(Some(env_rc), op, &prev_operand)?;
+
                         if let AstNode::Environment { ref mut bindings, .. } = current_env {
                             bindings.push(Rc::new(node));
                         }
@@ -836,7 +821,7 @@ impl Parser {
         // Valid numbers start with a number or a full stop (if float)
         match start_token {
             Token::Number(num) => numstr.push_str(num),
-            Token::FullStop(_) => numstr.push_str("0."),
+            Token::Operator(Operators::Other(OtherOperators::ACCESSOR)) => numstr.push_str("0."),
             _ => return Err(ParserError::NotANumber(start_pos, self.line, numstr)),
         }
         
@@ -846,7 +831,7 @@ impl Parser {
                     numstr.push_str(num);
                     self.next();
                 },
-                Token::FullStop(_) => {
+                Token::Operator(Operators::Other(OtherOperators::ACCESSOR)) => {
                     if numstr.contains(".") { // A float can only have one decimal point
                         return Err(ParserError::MalformedNumber(self.current, self.line, numstr));
                     }

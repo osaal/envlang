@@ -14,12 +14,14 @@ Each step in the rewrite is done in a new `patch` version to ensure clarity of c
 
 - Unit tests suites for parsing and lexing have been moved into their own files in corresponding directories.
 - The associated function `flatten_environment` is now a method.
+- The token `FullStop` has been refactored into `Operator(Operators::Other(OtherOperators::ACCESSOR))` to reduce code duplication.
 
 #### Minor changes
 
 - Changed a test to check for lack of terminators in explicit return environments.
 - Removed `NEWSTRUCTURE.md`.
 - Updated `STRUCTURE.md` and `Basics.md` to match rewrite.
+- Fixed tests to match the refactoring of `FullStop`.
 
 ### Version 0.5.10
 

@@ -170,7 +170,7 @@ mod tests {
     fn matches_fullstop() {
         let input = vec![".".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
-        assert_eq!(tokens, vec![Token::FullStop(OtherOperators::ACCESSOR), Token::EOF]);
+        assert_eq!(tokens, vec![Token::Operator(Operators::Other(OtherOperators::ACCESSOR)), Token::EOF]);
     }
 
     #[test]
