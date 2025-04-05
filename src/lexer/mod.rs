@@ -27,7 +27,7 @@ mod tests;
 pub use token::Token;
 pub use error::LexerError;
 
-use crate::symbols::{Keywords, Booleans, ArithmeticOperators, OtherOperators, Operators};
+use crate::symbols::{Keywords, Booleans, ArithmeticOperators, ComparisonOperators, OtherOperators, Operators};
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -85,6 +85,9 @@ impl Lexer {
     /// * [`LexerError::BrokenLexer`]: The currently-held position is beyond input length.
     /// * [`LexerError::IndexOutOfBounds`]: The index of the requested element is beyond input length.
     fn peek_n(&self, n: usize) -> Result<Rc<str>, LexerError> {
+        // TODO: This should rather return an Option, since an empty symbol stream is a valid state.
+        // However, calls outside of symbol stream length should still error...
+        // How about Result<Option<Rc<str>>, LexerError>? That is quite verbose...
         let length: usize = self.input.len();
         if self.current > length {
             Err(LexerError::BrokenLexer(self.current, length))
@@ -120,7 +123,7 @@ impl Lexer {
                     tokens.push(self.tokenize_string("\"", pos)?),
                 "'" =>
                     tokens.push(self.tokenize_string("'", pos)?),
-                "+" | "-" | "*" | "/" | "%" | "^" | "=" =>
+                "+" | "-" | "*" | "/" | "%" | "^" | "=" | "<" | ">" | "!" =>
                     tokens.push(self.tokenize_operator(&unicode_string, pos)?),
                 "." =>
                     tokens.push(Token::Operator(Operators::Other(OtherOperators::ACCESSOR))),
@@ -139,6 +142,40 @@ impl Lexer {
         }
         tokens.push(Token::EOF);
         return Ok(tokens);
+    }
+
+    /// Distinguishes single-symbol operators from dual-symbol operators.
+    /// 
+    /// # Errors
+    /// * [`LexerError::InvalidOperator`]: Either the first or the second symbol did not match the set of valid comparison operator symbols.
+    /// * [`LexerError::IndexOutOfBounds`]: There is no next symbol in the symbol queue, meaning there cannot be a right-hand-side to the operator.
+    fn tokenize_comparison(&mut self, first_op: &str, pos: usize) -> Result<Token, LexerError> {
+        if let Ok(next_symbol) = self.peek_n(self.current) {
+            // We have a next symbol
+            // Check whether it is "="
+            match next_symbol.borrow() {
+                "=" => {
+                    // Increment `current` to avoid re-parsing the next symbol once the method is done.
+                    self.current += 1;
+                    match first_op {
+                        ">" => return Ok(Token::Operator(Operators::Comparison(ComparisonOperators::GEQ))),
+                        "<" => return Ok(Token::Operator(Operators::Comparison(ComparisonOperators::LEQ))),
+                        "=" => return Ok(Token::Operator(Operators::Comparison(ComparisonOperators::EQ))),
+                        "!" => return Ok(Token::Operator(Operators::Comparison(ComparisonOperators::NEQ))),
+                        _ => return Err(LexerError::InvalidOperator(pos, first_op.to_string())),
+                    }
+                },
+                _ => return Err(LexerError::InvalidOperator(pos, next_symbol.to_string())),
+            }
+        }
+
+        // We should have a single symbol (or peek_n returned some other error...)
+        match first_op {
+            ">" => return Ok(Token::Operator(Operators::Comparison(ComparisonOperators::GT))),
+            "<" => return Ok(Token::Operator(Operators::Comparison(ComparisonOperators::LT))),
+            "=" => return Ok(Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT))),
+            _ => return Err(LexerError::InvalidOperator(pos, first_op.to_string())),
+        }
     }
 
     /// Matches one or more characters that conform to [`char::is_ascii_digit`]
@@ -250,6 +287,7 @@ impl Lexer {
     /// Tokenize an operator
     /// 
     /// # Errors
+    /// * Any errors bubbled up from [`tokenize_comparison`](Lexer::tokenize_comparison).
     /// * [`LexerError::UnrecognizedInput`]: The text did not match the set of valid operators.
     fn tokenize_operator(&mut self, unicode_string: &str, pos: usize) -> Result<Token, LexerError> {
         let operator = match unicode_string {
@@ -259,7 +297,7 @@ impl Lexer {
             "/" => Ok(Operators::Arithmetic(ArithmeticOperators::DIVIDE)),
             "%" => Ok(Operators::Arithmetic(ArithmeticOperators::MODULUS)),
             "^" => Ok(Operators::Arithmetic(ArithmeticOperators::EXPONENTIATION)),
-            "=" => Ok(Operators::Other(OtherOperators::ASSIGNMENT)),
+            ">" | "<" | "!" | "=" => return Ok(self.tokenize_comparison(&unicode_string, pos)?),
             _ => Err(LexerError::UnrecognizedInput(pos, unicode_string.to_string())),
         };
         return Ok(Token::Operator(operator?));

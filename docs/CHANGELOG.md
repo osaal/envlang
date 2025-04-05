@@ -11,7 +11,8 @@ This version adds a bunch of operators as well as implements operator precedence
 #### Major changes
 
 - Added the symbol enum `ComparisonOperators`. It enumerates six logical comparison operators: less than, less than or equal to, greater than, greater than or equal to, equal to, and not equal to.
-- Added the enum variant `Operators::Comparison(ComparisonOperators)`
+- Added the enum variant `Operators::Comparison(ComparisonOperators)`.
+- The lexer now recognises and lexes comparison operators.
 
 #### Minor changes
 
