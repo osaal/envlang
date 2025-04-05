@@ -2,6 +2,21 @@
 
 This is the Envlang alpha development version. Expect large API changes and sudden breaking.
 
+## Version 0.6
+
+This version adds a bunch of operators as well as implements operator precedence.
+
+### Version 0.6.0
+
+#### Major changes
+
+- Added the symbol enum `ComparisonOperators`. It enumerates six logical comparison operators: less than, less than or equal to, greater than, greater than or equal to, equal to, and not equal to.
+- Added the enum variant `Operators::Comparison(ComparisonOperators)`
+
+#### Minor changes
+
+- Added tests for comparison operator lexing.
+
 ## Version 0.5
 
 This version entails a complete rewrite of reading in `.envl` files with the CLI, segmenting them into Unicode-compliant characters, lexing the characters into Tokens and parsing the Tokens into an Abstract Syntax Tree (AST).
