@@ -6,6 +6,15 @@ This is the Envlang alpha development version. Expect large API changes and sudd
 
 This version adds a bunch of operators as well as implements operator precedence.
 
+### Version 0.6.1
+
+#### Major changes
+
+- Added the symbol enum `LogicalOperators`. It enumerates three Boolean-logical operators: AND, OR, and NOT.
+- Added the num variant `Operators::Logical(LogicalOperators)`.
+
+#### Minor changes
+
 ### Version 0.6.0
 
 #### Major changes
