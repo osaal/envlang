@@ -10,6 +10,7 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operators {
     Arithmetic(ArithmeticOperators),
+    Comparison(ComparisonOperators),
     Other(OtherOperators),
 }
 
@@ -17,6 +18,7 @@ impl ToString for Operators {
     fn to_string(&self) -> String {
         match self {
             Operators::Arithmetic(op) => op.to_string(),
+            Operators::Comparison(op) => op.to_string(),
             Operators::Other(op) => op.to_string(),
         }
     }

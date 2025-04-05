@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::symbols::{ArithmeticOperators, OtherOperators, Operators, Booleans, Keywords};
+    use crate::symbols::{ArithmeticOperators, ComparisonOperators, OtherOperators, Operators, Booleans, Keywords};
     use crate::lexer::{Lexer, LexerError, Token};
     use std::rc::Rc;
 
@@ -248,6 +248,48 @@ mod tests {
         let input = vec![";".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
         assert_eq!(tokens, vec![Token::LineTerminator, Token::EOF]);
+    }
+
+    #[test]
+    fn matches_lt_operator() {
+        let input = vec!["<".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Comparison(ComparisonOperators::LT)), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_leq_operator() {
+        let input = vec!["<".to_string(), "=".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Comparison(ComparisonOperators::LEQ)), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_gt_operator() {
+        let input = vec![">".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Comparison(ComparisonOperators::GT)), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_geq_operator() {
+        let input = vec![">".to_string(), "=".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Comparison(ComparisonOperators::GEQ)), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_eq_operator() {
+        let input = vec!["=".to_string(), "=".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Comparison(ComparisonOperators::EQ)), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_neq_operator() {
+        let input = vec!["!".to_string(), "=".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Comparison(ComparisonOperators::NEQ)), Token::EOF]);
     }
 
     // Complex token sequence tests
