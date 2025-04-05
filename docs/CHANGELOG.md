@@ -12,8 +12,13 @@ This version adds a bunch of operators as well as implements operator precedence
 
 - Added the symbol enum `LogicalOperators`. It enumerates three Boolean-logical operators: AND, OR, and NOT.
 - Added the num variant `Operators::Logical(LogicalOperators)`.
+- The lexer now recognises and lexes the unary logical operator NOT (`!`) and the binary logical operators AND (`&`) and OR (`|`).
+- The parser now recognises and parses binary logical operations (AND and NOT).
 
 #### Minor changes
+
+- Added tests for unary and binary logical operator lexing.
+- Added tests for binary logical operator parsing.
 
 ### Version 0.6.0
 
@@ -26,6 +31,7 @@ This version adds a bunch of operators as well as implements operator precedence
 #### Minor changes
 
 - Added tests for comparison operator lexing.
+- Added tests for comparison operator parsing.
 
 ## Version 0.5
 
