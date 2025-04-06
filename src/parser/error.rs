@@ -125,7 +125,7 @@ impl fmt::Display for ParserError {
             ParserError::InvalidTokenInFnCall(pos, line, valuestr) =>
                 write!(f, "Parser error at source line {}, token position {}: Expected identifier or opening function argument bracket, instead of: '{}'", line, pos, valuestr),
             ParserError::InvalidTokenInUnaryOp(pos, line, valuestr) =>
-                write!(f, "Parser error at source line {}, token position {}: Expected identifier, digit, or whitespace in unary operation, instead of: '{}'", line, pos, valuestr),
+                write!(f, "Parser error at source line {}, token position {}: Expected identifier, digit, boolean, or whitespace in unary operation, instead of: '{}'", line, pos, valuestr),
         }
     }
 }
