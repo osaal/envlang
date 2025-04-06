@@ -11,6 +11,7 @@
 pub enum Operators {
     Arithmetic(ArithmeticOperators),
     Comparison(ComparisonOperators),
+    Logical(LogicalOperators),
     Other(OtherOperators),
 }
 
@@ -19,6 +20,7 @@ impl ToString for Operators {
         match self {
             Operators::Arithmetic(op) => op.to_string(),
             Operators::Comparison(op) => op.to_string(),
+            Operators::Logical(op) => op.to_string(),
             Operators::Other(op) => op.to_string(),
         }
     }
@@ -84,6 +86,29 @@ impl ToString for ComparisonOperators {
             ComparisonOperators::GEQ => ">=".to_string(),
             ComparisonOperators::EQ => "==".to_string(),
             ComparisonOperators::NEQ => "!=".to_string(),
+        }
+    }
+}
+
+/// Types of logical operators
+/// 
+/// The enum derives the traits `Debug`, `Clone`, `PartialEq`, and `Eq`, and implements [`ToString`](LogicalOperators::to_string).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LogicalOperators {
+    /// The binary AND operator `&` (U+0026)
+    AND,
+    /// The binary OR operator `|` (U+007C)
+    OR,
+    /// The unary NOT operator `!` (U+0021)
+    NOT,
+}
+
+impl ToString for LogicalOperators {
+    fn to_string(&self) -> String {
+        match self {
+            LogicalOperators::AND => "&".to_string(),
+            LogicalOperators::OR => "|".to_string(),
+            LogicalOperators::NOT => "!".to_string(),
         }
     }
 }

@@ -25,7 +25,7 @@ pub use astnode::AstNode;
 pub use error::ParserError;
 
 use crate::lexer::Token;
-use crate::symbols::{Keywords, Booleans, Operators, ArithmeticOperators, OtherOperators};
+use crate::symbols::{Keywords, Booleans, Operators, ArithmeticOperators, LogicalOperators, OtherOperators};
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -723,6 +723,9 @@ impl Parser {
         match op {
             Operators::Other(OtherOperators::ACCESSOR) => {
                 return Ok(self.parse_accessor_op(op, prev)?)
+            },
+            Operators::Logical(LogicalOperators::NOT) => {
+                todo!() // TODO: Implement unary NOT parsing as its own method
             },
             _ => {
                 return Ok(self.parse_generic_op(parent_env, op, prev)?)

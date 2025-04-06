@@ -27,7 +27,7 @@ mod tests;
 pub use token::Token;
 pub use error::LexerError;
 
-use crate::symbols::{Keywords, Booleans, ArithmeticOperators, ComparisonOperators, OtherOperators, Operators};
+use crate::symbols::{Keywords, Booleans, ArithmeticOperators, ComparisonOperators, LogicalOperators, OtherOperators, Operators};
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -123,7 +123,7 @@ impl Lexer {
                     tokens.push(self.tokenize_string("\"", pos)?),
                 "'" =>
                     tokens.push(self.tokenize_string("'", pos)?),
-                "+" | "-" | "*" | "/" | "%" | "^" | "=" | "<" | ">" | "!" =>
+                "+" | "-" | "*" | "/" | "%" | "^" | "=" | "<" | ">" | "!" | "&" | "|" =>
                     tokens.push(self.tokenize_operator(&unicode_string, pos)?),
                 "." =>
                     tokens.push(Token::Operator(Operators::Other(OtherOperators::ACCESSOR))),
@@ -165,7 +165,10 @@ impl Lexer {
                         _ => return Err(LexerError::InvalidOperator(pos, first_op.to_string())),
                     }
                 },
-                _ => return Err(LexerError::InvalidOperator(pos, next_symbol.to_string())),
+                _ => match first_op {
+                    "!" => return Ok(Token::Operator(Operators::Logical(LogicalOperators::NOT))),
+                    _ => return Err(LexerError::InvalidOperator(pos, next_symbol.to_string())),
+                },
             }
         }
 
@@ -174,6 +177,7 @@ impl Lexer {
             ">" => return Ok(Token::Operator(Operators::Comparison(ComparisonOperators::GT))),
             "<" => return Ok(Token::Operator(Operators::Comparison(ComparisonOperators::LT))),
             "=" => return Ok(Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT))),
+            "!" => return Ok(Token::Operator(Operators::Logical(LogicalOperators::NOT))),
             _ => return Err(LexerError::InvalidOperator(pos, first_op.to_string())),
         }
     }
@@ -298,6 +302,8 @@ impl Lexer {
             "%" => Ok(Operators::Arithmetic(ArithmeticOperators::MODULUS)),
             "^" => Ok(Operators::Arithmetic(ArithmeticOperators::EXPONENTIATION)),
             ">" | "<" | "!" | "=" => return Ok(self.tokenize_comparison(&unicode_string, pos)?),
+            "&" => Ok(Operators::Logical(LogicalOperators::AND)),
+            "|" => Ok(Operators::Logical(LogicalOperators::OR)),
             _ => Err(LexerError::UnrecognizedInput(pos, unicode_string.to_string())),
         };
         return Ok(Token::Operator(operator?));

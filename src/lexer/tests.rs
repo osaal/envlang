@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::symbols::{ArithmeticOperators, ComparisonOperators, OtherOperators, Operators, Booleans, Keywords};
+    use crate::symbols::{ArithmeticOperators, ComparisonOperators, LogicalOperators, OtherOperators, Operators, Booleans, Keywords};
     use crate::lexer::{Lexer, LexerError, Token};
     use std::rc::Rc;
 
@@ -290,6 +290,27 @@ mod tests {
         let input = vec!["!".to_string(), "=".to_string()];
         let tokens = Lexer::new(input).tokenize().unwrap();
         assert_eq!(tokens, vec![Token::Operator(Operators::Comparison(ComparisonOperators::NEQ)), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_and_operator() {
+        let input = vec!["&".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Logical(LogicalOperators::AND)), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_or_operator() {
+        let input = vec!["|".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Logical(LogicalOperators::OR)), Token::EOF]);
+    }
+
+    #[test]
+    fn matches_not_operator() {
+        let input = vec!["!".to_string()];
+        let tokens = Lexer::new(input).tokenize().unwrap();
+        assert_eq!(tokens, vec![Token::Operator(Operators::Logical(LogicalOperators::NOT)), Token::EOF]);
     }
 
     // Complex token sequence tests
