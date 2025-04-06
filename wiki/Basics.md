@@ -11,7 +11,7 @@ Features of `Envlang`:
 
 This document tries to explain the basics of how Envlang functions. During alpha development, not every functionality might be implemented -- check [STRUCTURE.md](STRUCTURE.md) for a more up-to-date list of implemented functionality.
 
-The document [grammar.ebnf](grammar.ebnf) presents the Envlang grammar in Extended Backus-Naur Form. Note, that the file is a descriptive document, and is not actually used to generate the lexer and/or parser -- please leave an Issue if the grammar deviates from actual behaviour in Envlang.
+The grammar is documented in the source tree at `docs/grammar.ebnf` in Extended Backus-Naur Form. Note, however, that it is highly likely that this grammar is incorrect compared to the actual behaviour in the source code. The grammar will be updated prior to the launch of version 1.0, during which this section will also be updated to match. You are free to correct the grammar file by leaving a pull request or issue on Github.
 
 ## Data Types
 
