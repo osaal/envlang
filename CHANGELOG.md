@@ -11,12 +11,12 @@ This version adds a bunch of operators as well as implements operator precedence
 #### Major changes
 
 - Added the enum variant `AstNode::UnaryOp` as a struct with two fields: the `op` operator and the `operand` (RHS of the operation).
-- The parser now recognises and parses the unary arithmetic operators `-` and `+`. Their priority is above binary operations. The change does not affect the parsing of binary operations.
+- The parser now recognises and parses the unary arithmetic operators `-` and `+` as well as the unary logical operator NOT `!`. Their priority is above binary operations. The change does not affect the parsing of binary operations.
 - EOF token parsing has been changed: EOF tokens are now allowed in all normal-context environments (previously only the global normal-context environment allowed them). This solves issues with parsing unary operations inside binary operations.
 
 #### Minor changes
 
-- Added tests for unary arithmetic operator parsing.
+- Added tests for unary arithmetic and logical operator parsing.
 - Added error variants for failed unary operator parsing.
 
 ### Version 0.6.1

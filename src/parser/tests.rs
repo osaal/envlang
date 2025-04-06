@@ -140,6 +140,26 @@ mod tests {
     }
 
     #[test]
+    fn unary_logical_operator() {
+        let tokens = vec![
+            Token::Operator(Operators::Logical(LogicalOperators::NOT)),
+            Token::Boolean(Booleans::TRUE),
+            Token::LineTerminator,
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::UnaryOp {
+                op: Operators::Logical(LogicalOperators::NOT),
+                operand: Rc::new(AstNode::Boolean(true)),
+            })],
+            parent: None,
+        })
+    }
+
+    #[test]
     fn logical_operator() {
         let tokens = vec![
             Token::Boolean(Booleans::TRUE),

@@ -265,6 +265,7 @@ impl Parser {
                         // We might have a unary operator on our hands
                         match op {
                             Operators::Arithmetic(ArithmeticOperators::ADD)
+                            | Operators::Logical(LogicalOperators::NOT)
                             | Operators::Arithmetic(ArithmeticOperators::SUBTRACT) => {
                                 // Valid unary operator, call parse_unary_operator
                                 let node = self.parse_unary_operator(op)?;
@@ -584,7 +585,7 @@ impl Parser {
                             }
                             Ok(())
                         }).expect("Safety: Will always be AstNode::Let");
-                        
+
                         return Ok(result);
                     } else {
                         return Err(ParserError::InvalidAssignmentOp(pos, self.line, token.to_string()));
@@ -752,6 +753,13 @@ impl Parser {
                         operand: Rc::new(AstNode::Identifier(id.clone())),
                     })
                 },
+                Token::Boolean(bool) => {
+                    // Is the operand line nasty? It feels elegant, but also nasty...
+                    return Ok(AstNode::UnaryOp {
+                        op: op.clone(),
+                        operand: Rc::new(AstNode::Boolean(match bool { Booleans::TRUE => true, Booleans::FALSE => false}))
+                    })
+                }
                 _ => {
                     return Err(ParserError::InvalidTokenInUnaryOp(pos, self.line, token.to_string()))
                 },
