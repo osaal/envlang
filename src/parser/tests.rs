@@ -98,6 +98,26 @@ mod tests {
     }
 
     #[test]
+    fn unary_operation() {
+        let tokens = vec![
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::SUBTRACT)),
+            Token::Number("5".into()),
+            Token::LineTerminator,
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::UnaryOp {
+                op: Operators::Arithmetic(ArithmeticOperators::SUBTRACT),
+                operand: Rc::new(AstNode::Integer(5))
+            })],
+            parent: None,
+        })
+    }
+
+    #[test]
     fn comparison_operation() {
         let tokens = vec![
             Token::Boolean(Booleans::TRUE),
@@ -181,6 +201,66 @@ mod tests {
             bindings: vec![Rc::new(AstNode::Let {
                 name: "x".into(),
                 value: Some(Rc::new(AstNode::Identifier("y".into()))),
+                inherit: None,
+            })],
+            parent: None
+        });
+    }
+
+    #[test]
+    fn unary_op_in_assignment() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::SUBTRACT)),
+            Token::Number("5".into()),
+            Token::LineTerminator,
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "x".into(),
+                value: Some(Rc::new(AstNode::UnaryOp {
+                    op: Operators::Arithmetic(ArithmeticOperators::SUBTRACT),
+                    operand: Rc::new(AstNode::Integer(5)),
+                })),
+                inherit: None,
+            })],
+            parent: None
+        });
+    }
+
+    #[test]
+    fn unary_op_in_binary_op_assignment() {
+        let tokens = vec![
+            Token::Keyword(Keywords::LET),
+            Token::Identifier("x".into()),
+            Token::Operator(Operators::Other(OtherOperators::ASSIGNMENT)),
+            Token::Number("5".into()),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::ADD)),
+            Token::Operator(Operators::Arithmetic(ArithmeticOperators::SUBTRACT)),
+            Token::Number("3".into()),
+            Token::LineTerminator,
+            Token::EOF
+        ];
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+        assert_eq!(ast, AstNode::Environment {
+            name: None,
+            bindings: vec![Rc::new(AstNode::Let {
+                name: "x".into(),
+                value: Some(Rc::new(AstNode::BinaryOp {
+                    left: Rc::new(AstNode::Integer(5)),
+                    operator: Operators::Arithmetic(ArithmeticOperators::ADD),
+                    right: Rc::new(AstNode::UnaryOp {
+                        op: Operators::Arithmetic(ArithmeticOperators::SUBTRACT),
+                        operand: Rc::new(AstNode::Integer(3))
+                    })
+                })),
                 inherit: None,
             })],
             parent: None
