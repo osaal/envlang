@@ -306,22 +306,21 @@ impl Parser {
                 },
                 Token::EOF => {
                     match context {
-                        ParseContext::FunctionReturn => {
-                            // Return statements can finish on EOF
+                        ParseContext::Normal => {
+                            // Normal environments can finish on EOF
                             return Ok(current_env);
                         },
-                        ParseContext::Normal if parent.is_none() => {
-                            // Global env can finish on EOF
+                        ParseContext::FunctionReturn => {
+                            // Return statements can finish on EOF
                             return Ok(current_env);
                         },
                         ParseContext::Function => {
                             // Functions cannot finish without return statements
                             return Err(ParserError::MissingReturnStatement(pos, self.line, "".into()))
                         },
-                        ParseContext::Normal
                         | ParseContext::FunctionCall
                         | ParseContext::Operation => {
-                            // Non-global env cannot finish on EOF
+                            // Operations and function calls cannot finish on EOF
                             return Err(ParserError::UnexpectedEOF(pos, self.line));
                         },
                     }
@@ -585,7 +584,7 @@ impl Parser {
                             }
                             Ok(())
                         }).expect("Safety: Will always be AstNode::Let");
-
+                        
                         return Ok(result);
                     } else {
                         return Err(ParserError::InvalidAssignmentOp(pos, self.line, token.to_string()));
