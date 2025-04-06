@@ -6,12 +6,24 @@ This is the Envlang alpha development version. Expect large API changes and sudd
 
 This version adds a bunch of operators as well as implements operator precedence.
 
+### Version 0.6.2
+
+#### Major changes
+
+- Added the enum variant `AstNode::UnaryOp` as a struct with two fields: the `op` operator and the `operand` (RHS of the operation).
+- The parser now recognises and parses the unary arithmetic operators `-` and `+`. Their priority is above binary operations. The change does not affect the parsing of binary operations.
+
+#### Minor changes
+
+- Added tests for unary arithmetic operator parsing.
+- Added error variants for failed unary operator parsing.
+
 ### Version 0.6.1
 
 #### Major changes
 
 - Added the symbol enum `LogicalOperators`. It enumerates three Boolean-logical operators: AND, OR, and NOT.
-- Added the num variant `Operators::Logical(LogicalOperators)`.
+- Added the enum variant `Operators::Logical(LogicalOperators)`.
 - The lexer now recognises and lexes the unary logical operator NOT (`!`) and the binary logical operators AND (`&`) and OR (`|`).
 - The parser now recognises and parses binary logical operations (AND and NOT).
 

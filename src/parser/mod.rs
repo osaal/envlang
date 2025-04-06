@@ -262,7 +262,22 @@ impl Parser {
                             bindings.push(Rc::new(node));
                         }
                     } else {
-                        return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
+                        // We might have a unary operator on our hands
+                        match op {
+                            Operators::Arithmetic(ArithmeticOperators::ADD)
+                            | Operators::Arithmetic(ArithmeticOperators::SUBTRACT) => {
+                                // Valid unary operator, call parse_unary_operator
+                                let node = self.parse_unary_operator(op)?;
+
+                                if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                                    bindings.push(Rc::new(node));
+                                }
+                            },
+                            _ => {
+                                // Invalid unary operator, must be a binary operator
+                                return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
+                            }
+                        }
                     }
                 },
                 Token::LineTerminator => {
@@ -709,6 +724,42 @@ impl Parser {
     /// 
     /// The method does not panic or return errors.
     fn parse_whitespace(&mut self, ws: &Rc<str>) { match ws.borrow() { "\r\n" | "\n" => self.line += 1, _ => () }}
+
+    /// Returns an `[AstNode::UnaryOp`] representing the unary operation.
+    /// 
+    /// # Arguments
+    /// * `op`: A reference to the operator enum variant.
+    /// 
+    /// # Errors
+    /// * Any errors bubbled up from [`parse_number`](Parser::parse_number)
+    /// * [`ParserError::InvalidTokenInUnaryOp`]: The RHS of the unary operation does not match valid operands.
+    /// * [`ParserError::UnexpectedEOF`]: Dangling unary operator at the end of source file.
+    fn parse_unary_operator(&mut self, op: &Operators) -> Result<AstNode, ParserError> {
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => {
+                    self.parse_whitespace(ws);
+                },
+                Token::Number(_) => {
+                    let number = self.parse_number(pos, &token)?;
+                    return Ok(AstNode::UnaryOp {
+                        op: op.clone(),
+                        operand: Rc::new(number),
+                    })
+                },
+                Token::Identifier(id) => {
+                    return Ok(AstNode::UnaryOp {
+                        op: op.clone(),
+                        operand: Rc::new(AstNode::Identifier(id.clone())),
+                    })
+                },
+                _ => {
+                    return Err(ParserError::InvalidTokenInUnaryOp(pos, self.line, token.to_string()))
+                },
+            }
+        }
+        return Err(ParserError::UnexpectedEOF(self.current, self.line));
+    }
 
     /// Returns an `[AstNode::BinaryOp`] representing the binary operation.
     /// 
