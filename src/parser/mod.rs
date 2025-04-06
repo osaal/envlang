@@ -53,6 +53,29 @@ impl ToString for ParseContext {
     }
 }
 
+/// The `Precedence` enum represents precedence levels for operators, with higher numbers indicating higher precedence.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Precedence {
+    /// The binary assignment operation `=`
+    Assignment = 1,
+    /// The binary logical OR operation `|`
+    LogicalOr = 2,
+    /// The binary logical AND operation `&`
+    LogicalAnd = 3,
+    /// The binary equality operations `==` and `=!`
+    Equality = 4,
+    /// The binary relational operations `>`, `>=`, `<`, and `<=`
+    Relational = 5,
+    /// The binary additive operations `+`, and `-`
+    Additive = 6,
+    /// The binary multiplicative operations `*`, `/`, and `%`
+    Multiplicative = 7,
+    /// The unary logical NOT operation `!`, and the unary arithmetic operations `+`, and `-`
+    Unary = 8,
+    /// Function calls using `[]` and the binary accession operation `.`
+    Call = 9,
+}
+
 /// The `Parser` struct holds the [`Token`] vector from the lexer, as well as the index of the currently lexed token and the line number.
 /// 
 /// The line number is calculated from the amount of recognised line-breaks, and is one-indexed.

@@ -6,6 +6,16 @@ This is the Envlang alpha development version. Expect large API changes and sudd
 
 This version adds a bunch of operators as well as implements operator precedence.
 
+### Version 0.6.3
+
+#### Major changes
+
+- Added the enum `Precedence`, that enumerates the predecence levels of operators used in Envlang.
+
+#### Minor changes
+
+None yet.
+
 ### Version 0.6.2
 
 #### Major changes
