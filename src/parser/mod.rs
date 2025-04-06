@@ -985,7 +985,7 @@ impl Parser {
     // New method: parse_prefix()
     // - Matches the next token from .peek and calls the appropriate parsing method
     // - For unary ops: Calls parse_precedence with Precedence::Unary and returns UnaryOp with the result inside it
-    // - To enable parentheticals: match on LeftParen, parse the inner_expression, match on .peek, increment with .next and return expression if OK, error if not
+    // - To enable parentheticals: match on LeftParen, parse the inner expression with parse_expression, match on .peek, increment with .next and return expression if OK, error if not
     // New method: get_precedence(Operator)
     // - Matches the Operator and returns their appropriate Precedence variant
     // New method: is_right_associative(Operator)
