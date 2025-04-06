@@ -972,4 +972,29 @@ impl Parser {
     fn debug_token_tuple(&self, pos: usize, token: &Token) {
         println!("Grabbed token at index: {}, token: {:?}", pos, token);
     }
+
+    // TODO: Notes for implementing precedence:
+    // New method: parse_expression (used for parsing inner expressions inside parentheses)
+    // - Simple wrapper for parse_precedence(Precedence::Assignment)
+    // New method: parse_precedence(Precedence)
+    // - Parses the left-hand-side using parse_prefix
+    // - Parses every token up until their precedence level is lower than the starting precedence
+    // - Uses .peek and .next instead of .advance to avoid consuming tokens if precedence was not higher than minimum
+    // - Recursively calls itself with either the same precedence (if .is_right_associative(Operator)) or one higher precedence (else)
+    // - Returns a BinaryOp with the left and right tokens
+    // New method: parse_prefix()
+    // - Matches the next token from .peek and calls the appropriate parsing method
+    // - For unary ops: Calls parse_precedence with Precedence::Unary and returns UnaryOp with the result inside it
+    // - To enable parentheticals: match on LeftParen, parse the inner_expression, match on .peek, increment with .next and return expression if OK, error if not
+    // New method: get_precedence(Operator)
+    // - Matches the Operator and returns their appropriate Precedence variant
+    // New method: is_right_associative(Operator)
+    // - Matches the Operator and returns true if it is right-associative
+
+    // Using the precedence methods:
+    // Modify parse_operator:
+    // - ACCESSOR => parse_accessor_op
+    // - NOT => parse_unary_operator
+    // - _ => get current precedence, start climing upwards with parse_precedence(Precedence), return the result as a BinaryOp
+    // Remove parse_generic_op completely, since parse_precedence replaces it!
 }
