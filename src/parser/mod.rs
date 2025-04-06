@@ -262,7 +262,23 @@ impl Parser {
                             bindings.push(Rc::new(node));
                         }
                     } else {
-                        return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
+                        // We might have a unary operator on our hands
+                        match op {
+                            Operators::Arithmetic(ArithmeticOperators::ADD)
+                            | Operators::Logical(LogicalOperators::NOT)
+                            | Operators::Arithmetic(ArithmeticOperators::SUBTRACT) => {
+                                // Valid unary operator, call parse_unary_operator
+                                let node = self.parse_unary_operator(op)?;
+
+                                if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                                    bindings.push(Rc::new(node));
+                                }
+                            },
+                            _ => {
+                                // Invalid unary operator, must be a binary operator
+                                return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
+                            }
+                        }
                     }
                 },
                 Token::LineTerminator => {
@@ -291,22 +307,21 @@ impl Parser {
                 },
                 Token::EOF => {
                     match context {
-                        ParseContext::FunctionReturn => {
-                            // Return statements can finish on EOF
+                        ParseContext::Normal => {
+                            // Normal environments can finish on EOF
                             return Ok(current_env);
                         },
-                        ParseContext::Normal if parent.is_none() => {
-                            // Global env can finish on EOF
+                        ParseContext::FunctionReturn => {
+                            // Return statements can finish on EOF
                             return Ok(current_env);
                         },
                         ParseContext::Function => {
                             // Functions cannot finish without return statements
                             return Err(ParserError::MissingReturnStatement(pos, self.line, "".into()))
                         },
-                        ParseContext::Normal
                         | ParseContext::FunctionCall
                         | ParseContext::Operation => {
-                            // Non-global env cannot finish on EOF
+                            // Operations and function calls cannot finish on EOF
                             return Err(ParserError::UnexpectedEOF(pos, self.line));
                         },
                     }
@@ -316,10 +331,8 @@ impl Parser {
 
         // Check if EOF token was consumed by one of the valid contexts
         match context {
-            ParseContext::Normal if parent.is_none() => {
-                return Ok(current_env);
-            },
-            ParseContext::FunctionReturn => {
+            ParseContext::Normal
+            | ParseContext::FunctionReturn => {
                 return Ok(current_env);
             },
             _ => Err(ParserError::UnclosedEnvironment(self.line))
@@ -709,6 +722,49 @@ impl Parser {
     /// 
     /// The method does not panic or return errors.
     fn parse_whitespace(&mut self, ws: &Rc<str>) { match ws.borrow() { "\r\n" | "\n" => self.line += 1, _ => () }}
+
+    /// Returns an `[AstNode::UnaryOp`] representing the unary operation.
+    /// 
+    /// # Arguments
+    /// * `op`: A reference to the operator enum variant.
+    /// 
+    /// # Errors
+    /// * Any errors bubbled up from [`parse_number`](Parser::parse_number)
+    /// * [`ParserError::InvalidTokenInUnaryOp`]: The RHS of the unary operation does not match valid operands.
+    /// * [`ParserError::UnexpectedEOF`]: Dangling unary operator at the end of source file.
+    fn parse_unary_operator(&mut self, op: &Operators) -> Result<AstNode, ParserError> {
+        while let Some((pos, token)) = self.advance() {
+            match token.borrow() {
+                Token::Whitespace(ws) => {
+                    self.parse_whitespace(ws);
+                },
+                Token::Number(_) => {
+                    let number = self.parse_number(pos, &token)?;
+                    return Ok(AstNode::UnaryOp {
+                        op: op.clone(),
+                        operand: Rc::new(number),
+                    })
+                },
+                Token::Identifier(id) => {
+                    return Ok(AstNode::UnaryOp {
+                        op: op.clone(),
+                        operand: Rc::new(AstNode::Identifier(id.clone())),
+                    })
+                },
+                Token::Boolean(bool) => {
+                    // Is the operand line nasty? It feels elegant, but also nasty...
+                    return Ok(AstNode::UnaryOp {
+                        op: op.clone(),
+                        operand: Rc::new(AstNode::Boolean(match bool { Booleans::TRUE => true, Booleans::FALSE => false}))
+                    })
+                }
+                _ => {
+                    return Err(ParserError::InvalidTokenInUnaryOp(pos, self.line, token.to_string()))
+                },
+            }
+        }
+        return Err(ParserError::UnexpectedEOF(self.current, self.line));
+    }
 
     /// Returns an `[AstNode::BinaryOp`] representing the binary operation.
     /// 

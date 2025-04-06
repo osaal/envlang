@@ -27,6 +27,14 @@ pub enum AstNode {
         parent: Option<Rc<AstNode>>,
     },
 
+    /// Unary operations are structs with two fields:
+    /// * `op`: The operator (as [`Operators`])
+    /// * `operand`: The operand (as `AstNode`)
+    UnaryOp {
+        op: Operators,
+        operand: Rc<AstNode>,
+    },
+
     /// Binary operations are structs with three fields:
     /// * `left`: Reference-counted pointer to left-hand-side operand (as `AstNode`).
     /// * `operator`: The operation (as [`Operators`]).
@@ -94,6 +102,8 @@ impl ToString for AstNode {
                     "Anonymous environment".to_string()
                 }
             },
+            AstNode::UnaryOp { op, operand }
+                => format!("{} {}", op.to_string(), operand.to_string()),
             AstNode::BinaryOp { left, operator, right }
                 => format!("{} {} {}", left.to_string(), operator.to_string(), right.to_string()),
             AstNode::Let { name, value , inherit: _ }
