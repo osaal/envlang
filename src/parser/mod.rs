@@ -331,10 +331,8 @@ impl Parser {
 
         // Check if EOF token was consumed by one of the valid contexts
         match context {
-            ParseContext::Normal if parent.is_none() => {
-                return Ok(current_env);
-            },
-            ParseContext::FunctionReturn => {
+            ParseContext::Normal
+            | ParseContext::FunctionReturn => {
                 return Ok(current_env);
             },
             _ => Err(ParserError::UnclosedEnvironment(self.line))
