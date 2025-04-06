@@ -49,9 +49,7 @@ If you are interested in contributing to Envlang, please make sure to thoroughly
 
 ## Syntax and Other Docs
 
-The syntax is documented in the [Basics Markdown file](docs/Basics.md) of this repository.
-
-The [docs](docs/) directory contains other general documentation, such as the changelog, and the structure of the Envlang interpreter. Please note, that any documentation files residing in `/docs` may currently be out-of-date.
+Most of the user- and developer-facing documentation has been moved to the Wiki, accessible on the Github page of Envlang.
 
 Future versions may move these docs to a dedicated page.
 
