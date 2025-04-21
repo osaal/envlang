@@ -1,0 +1,49 @@
+{
+    let x = 1;
+    let y = 2;
+    let z = 3;
+
+    let identifier inherit (*) = {
+        # Identifier inheritance, elements are available at low cost for calculations in the environment
+    }
+
+    let fun identifier[a, b] inherit (*) = {
+        # Function inheritance, elements are available at low cost to function calls
+        return (a + b) / c
+    }
+
+    let a inherit (x) = {
+        let b = x;      # OK
+        let c = y;      # ERROR: y not available in scope
+    }
+
+    # NOT ALLOWED, BUT AN EXAMPLE OF HOW CHAINED INHERITANCE COULD WORK
+    let b = c inherit (x) = 5+x;    # b and c = 6
+                                    # c is evaluated in the global scope, where it inherits x from
+
+    # NOT ALLOWED, BUT AN EXAMPLE OF HOW CHAINED INHERITANCE COULD WORK
+    let d = {
+        let e = f inherit (x) = 5+x;    # ERROR: x not available in scope
+    }                                   # f is evaluated within the scope of d, which does not contain x and therefore cannot inherit it
+
+    # ALLOWED
+    let g inherit (y) = {
+        let h = i = 5+y;                # h and i = 7
+    }                                   # i is evaluated within the scope of g
+                                        # g has inherited y from the global scope, so it is available insice the scope of g
+                                        # therefore, i has access to y and can use it
+
+    # NOT ALLOWED, BUT AN EXAMPLE OF HOW CHAINED INHERITANCE COULD WORK
+    let g inherit (y) = {
+        let h = i inherit (y) = {
+            let j = 5;
+            let k = j + y;              # k = 7
+        }                               # y is inherited from the scope of g
+    }
+
+    In the above case, both i and h are data structures containing y, j and k.
+    The inheritance of y into h has happened because it was first inherited into i when i's environment was evaluated,
+    and then passed into h through the chain.
+    This is opaque behaviour, since h was never explicitly told it could inherit y.
+    Therefore, for clarity, it should not be allowed.
+}
