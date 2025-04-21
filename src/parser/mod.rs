@@ -25,7 +25,7 @@ pub use astnode::AstNode;
 pub use error::ParserError;
 
 use crate::lexer::Token;
-use crate::symbols::{Keywords, Booleans, Operators, ArithmeticOperators, LogicalOperators, OtherOperators};
+use crate::symbols::{Keywords, Booleans, Operators, ArithmeticOperators, LogicalOperators, ComparisonOperators, OtherOperators};
 use std::rc::Rc;
 use std::borrow::Borrow;
 
@@ -39,6 +39,7 @@ enum ParseContext {
     Function,
     FunctionReturn,
     FunctionCall,
+    Parenthesis,
 }
 
 impl ToString for ParseContext {
@@ -49,6 +50,7 @@ impl ToString for ParseContext {
             ParseContext::Function => "ParseContext::Function".to_string(),
             ParseContext::FunctionReturn => "ParseContext::FunctionReturn".to_string(),
             ParseContext::FunctionCall => "ParseContext::FunctionCall".to_string(),
+            ParseContext::Parenthesis => "ParseContext::Parenthesis".to_string(),
         }
     }
 }
@@ -74,6 +76,24 @@ enum Precedence {
     Unary = 8,
     /// Function calls using `[]` and the binary accession operation `.`
     Call = 9,
+}
+
+impl TryFrom<u8> for Precedence {
+    type Error = ParserError;
+    fn try_from(val: u8) -> Result<Self, Self::Error> {
+        match val {
+            1 => Ok(Self::Assignment),
+            2 => Ok(Self::LogicalOr),
+            3 => Ok(Self::LogicalAnd),
+            4 => Ok(Self::Equality),
+            5 => Ok(Self::Relational),
+            6 => Ok(Self::Additive),
+            7 => Ok(Self::Multiplicative),
+            8 => Ok(Self::Unary),
+            9 => Ok(Self::Call),
+            _ => Err(ParserError::InvalidPrecedence(val)),
+        }
+    }
 }
 
 /// The `Parser` struct holds the [`Token`] vector from the lexer, as well as the index of the currently lexed token and the line number.
@@ -199,8 +219,26 @@ impl Parser {
                     if parent.is_none() { continue; };
                     return Ok(current_env);
                 },
-                Token::LeftParen => continue,           // Covered by parse_inherit_clause
-                Token::RightParen => continue,          // Covered by parse_inherit_clause
+                Token::LeftParen => {
+                    // Parentheticals are treated as their own environments, who are flattened by the caller (?)
+                    // This ensures highest precedence without having to result to matching on Precedences and essentially rewriting the parser for expressions
+                    let paren_expr: AstNode = self.parse_environment(
+                        Some(Rc::new(current_env.clone())),
+                        None,
+                        ParseContext::Parenthesis
+                    )?;
+                    if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                        bindings.push(Rc::new(paren_expr));
+                    }
+                },
+                Token::RightParen => {
+                    if context == ParseContext::Parenthesis {
+                        // In parenthetical parsing, we are done and can return upwards
+                        return Ok(current_env);
+                    } else {
+                        continue;
+                    }
+                },
                 Token::Comma => continue,               // Covered by parse_inherit_clause and parse_function_clause
                 Token::LeftBracket => continue,         // Covered by parse_function_clause
                 Token::RightBracket => continue,        // Covered by parse_function_clause
@@ -272,35 +310,31 @@ impl Parser {
                     }
                 Token::Whitespace(ws) => self.parse_whitespace(ws),
                 Token::Operator(op) => {
+                    // Get the previous operand, if it exists
                     let prev_operand: Option<Rc<AstNode>> = if let AstNode::Environment { ref mut bindings, .. } = current_env {
                         bindings.pop()
                     } else {
                         None
                     };
-                    if let Some(prev_operand) = prev_operand {
-                        let env_rc: Rc<AstNode> = Rc::new(current_env.clone());
-                        let node: AstNode = self.parse_operator(Some(env_rc), op, &prev_operand)?;
+
+                    // If no previous operand, we check unary operator validity and parse unary operation
+                    // Else, we start parsing regular binary expression
+                    if prev_operand == None {
+                        if self.is_unary_operator(op) {
+                            let node = self.parse_unary_operator(op)?;
+
+                            if let AstNode::Environment { ref mut bindings, .. } = current_env {
+                                bindings.push(Rc::new(node));
+                            }
+                        } else {
+                            return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
+                        }
+                    } else if let Some(prev_operand) = prev_operand {
+                        let prec = self.get_precedence(op, false); // Cannot be unary usage because there were previous elements!
+                        let node = self.parse_binary_expression(prev_operand, prec)?;
 
                         if let AstNode::Environment { ref mut bindings, .. } = current_env {
                             bindings.push(Rc::new(node));
-                        }
-                    } else {
-                        // We might have a unary operator on our hands
-                        match op {
-                            Operators::Arithmetic(ArithmeticOperators::ADD)
-                            | Operators::Logical(LogicalOperators::NOT)
-                            | Operators::Arithmetic(ArithmeticOperators::SUBTRACT) => {
-                                // Valid unary operator, call parse_unary_operator
-                                let node = self.parse_unary_operator(op)?;
-
-                                if let AstNode::Environment { ref mut bindings, .. } = current_env {
-                                    bindings.push(Rc::new(node));
-                                }
-                            },
-                            _ => {
-                                // Invalid unary operator, must be a binary operator
-                                return Err(ParserError::BinaryOpWithNoLHS(pos, self.line));
-                            }
                         }
                     }
                 },
@@ -325,6 +359,9 @@ impl Parser {
                         },
                         ParseContext::FunctionReturn => {
                             return Ok(current_env.clone());
+                        },
+                        ParseContext::Parenthesis => { // TODO: Check that this does not fuck with nested environments!
+                            return Ok(current_env.clone());
                         }
                     }
                 },
@@ -347,6 +384,10 @@ impl Parser {
                             // Operations and function calls cannot finish on EOF
                             return Err(ParserError::UnexpectedEOF(pos, self.line));
                         },
+                        ParseContext::Parenthesis => { // TODO: Check that this does not fuck with nested environments!
+                            // Parentheticals can finish on EOF
+                            return Ok(current_env);
+                        }
                     }
                 },
             }
@@ -360,6 +401,55 @@ impl Parser {
             },
             _ => Err(ParserError::UnclosedEnvironment(self.line))
         }
+    }
+
+    fn parse_binary_expression(&mut self, lhs: Rc<AstNode>, precedence: Precedence) -> Result<AstNode, ParserError> {
+        if let Some(next) = self.peek().cloned() {
+            match next {
+                Token::Operator(op) => {
+                    // Parse a unary operation first
+                    if self.is_unary_operator(&op) {
+                        let inner = self.parse_unary_operator(&op)?;
+                        return Ok(AstNode::BinaryOp {
+                            left: lhs,
+                            operator: op.clone(),
+                            right: Rc::new(inner),
+                        })
+                    }
+
+                    // Else, presume binary operation and compare precedences
+                    let op_prec = self.get_precedence(&op, false);
+                    if op_prec > precedence {
+                        // If higher, nest inwards with parse_expression
+                        let inner = self.parse_binary_expression(lhs.clone(), op_prec)?;
+                        return Ok(AstNode::BinaryOp {
+                            left: lhs,
+                            operator: op.clone(),
+                            right: Rc::new(inner),
+                        })
+                    } else if op_prec == precedence {
+                        // If equal, check whether previous was right- or left-associative
+                        // If previous was right-associative, parse this one first
+                        // If previous was left-associative, parse that one first
+                    } else {
+                        // If lower, parse current situation
+                        
+                    }
+                    todo!()
+                },
+                _ => {
+                    // Non-operator, we can treat token as rhs
+                    todo!()
+                },
+            }
+        }
+        Ok(AstNode::Integer(999))
+    }
+
+    fn parse_precedence(&mut self, precedence: Precedence) -> Result<AstNode, ParserError> {
+
+
+        return Ok(AstNode::Integer(5));
     }
 
     /// Returns an [`AstNode::Let`] representing an assignment operation.
@@ -762,10 +852,9 @@ impl Parser {
                     self.parse_whitespace(ws);
                 },
                 Token::Number(_) => {
-                    let number = self.parse_number(pos, &token)?;
                     return Ok(AstNode::UnaryOp {
                         op: op.clone(),
-                        operand: Rc::new(number),
+                        operand: Rc::new(self.parse_number(pos, &token)?),
                     })
                 },
                 Token::Identifier(id) => {
@@ -779,6 +868,21 @@ impl Parser {
                     return Ok(AstNode::UnaryOp {
                         op: op.clone(),
                         operand: Rc::new(AstNode::Boolean(match bool { Booleans::TRUE => true, Booleans::FALSE => false}))
+                    })
+                },
+                Token::Operator(op) => {
+                    // Subsequent unary operators get parsed right-to-left
+                    if self.is_unary_operator(op) {
+                        return Ok(self.parse_unary_operator(op)?);
+                    }
+                }
+                Token::LeftParen => {
+                    // Parentheses have higher priority than anything else
+                    let inner = self.parse_environment(parent_env, None, ParseContext::Parenthesis)?;
+                    let flattened = self.flatten_environment(inner, self.current, &Token::Comma)?;
+                    return Ok(AstNode::UnaryOp {
+                        op: op.clone(),
+                        operand: flattened,
                     })
                 }
                 _ => {
@@ -958,6 +1062,43 @@ impl Parser {
                 return Ok(bindings[0].clone());
             },
             _ => return Err(ParserError::NotAnEnvironment(pos, self.line, token.to_string()))
+        }
+    }
+
+    fn is_unary_operator(&self, op: &Operators) -> bool {
+        match op {
+            Operators::Logical(LogicalOperators::NOT) => true,
+            Operators::Arithmetic(ArithmeticOperators::ADD) => true,
+            Operators::Arithmetic(ArithmeticOperators::SUBTRACT) => true,
+            _ => false,
+        }
+    }
+
+    fn get_precedence(&self, op: &Operators, unary: bool) -> Precedence {
+        match op {
+            Operators::Other(OtherOperators::ASSIGNMENT) => Precedence::Assignment,
+            Operators::Logical(LogicalOperators::OR) => Precedence::LogicalOr,
+            Operators::Logical(LogicalOperators::AND) => Precedence::LogicalAnd,
+            Operators::Comparison(ComparisonOperators::EQ)
+            | Operators::Comparison(ComparisonOperators::NEQ) => Precedence::Equality,
+            Operators::Comparison(ComparisonOperators::LT)
+            | Operators::Comparison(ComparisonOperators::LEQ)
+            | Operators::Comparison(ComparisonOperators::GT)
+            | Operators::Comparison(ComparisonOperators::GEQ) => Precedence::Relational,
+            Operators::Arithmetic(ArithmeticOperators::ADD)
+            | Operators::Arithmetic(ArithmeticOperators::SUBTRACT) => {
+                if unary {
+                    Precedence::Unary
+                } else {
+                    Precedence::Additive
+                }
+            },
+            Operators::Arithmetic(ArithmeticOperators::MULTIPLY)
+            | Operators::Arithmetic(ArithmeticOperators::DIVIDE)
+            | Operators::Arithmetic(ArithmeticOperators::MODULUS)
+            | Operators::Arithmetic(ArithmeticOperators::EXPONENTIATION) => Precedence::Multiplicative,
+            Operators::Logical(LogicalOperators::NOT) => Precedence::Unary,
+            Operators::Other(OtherOperators::ACCESSOR) => Precedence::Call,
         }
     }
 
